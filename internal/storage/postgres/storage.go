@@ -18,9 +18,17 @@ func NewStorage(pool *pgxpool.Pool) *Storage {
 
 func (s *Storage) CreateUser(ctx context.Context, user adding.User) (int, error) {
 	var createdID int
-	var err error
 
-	err = s.withTx(ctx, func(q Queries) error {
+	err := s.withTx(ctx, func(q Queries) error {
+		dbUser, err := q.GetUserByEmail(ctx, user.Email)
+		if err != nil {
+			return err
+		}
+
+		if dbUser != nil {
+			return adding.ErrUserAlreadyExists
+		}
+
 		createdID, err = q.CreateUser(ctx, createUserArgs{
 			Name:  user.Name,
 			Email: user.Email,
@@ -47,7 +55,7 @@ func (s *Storage) withTx(ctx context.Context, f func(q Queries) error) error {
 		if rbErr := tx.Rollback(ctx); rbErr != nil {
 			return fmt.Errorf("failed to exec queries: %v", fmt.Errorf("failed to rollback transaction: %v", rbErr))
 		}
-		return fmt.Errorf("failed to exec queries: %v", err)
+		return err
 	}
 
 	if err = tx.Commit(ctx); err != nil {

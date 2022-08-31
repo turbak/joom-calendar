@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/turbak/joom-calendar/internal/adding"
 	httputil "github.com/turbak/joom-calendar/internal/pkg/http"
 	"net/http"
@@ -30,6 +31,10 @@ func (a *App) handleCreateUser() httputil.HandlerFunc {
 
 		createdID, err := a.addingService.CreateUser(req.Context(), user)
 		if err != nil {
+			if errors.Is(err, adding.ErrUserAlreadyExists) {
+				return nil, CodableError{Err: err, StatusCode: http.StatusConflict}
+			}
+
 			return nil, err
 		}
 

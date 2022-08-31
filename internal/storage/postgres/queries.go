@@ -29,3 +29,14 @@ func (q Queries) CreateUser(ctx context.Context, args createUserArgs) (int, erro
 	}
 	return id, nil
 }
+
+func (q Queries) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	row := q.execer.QueryRow(ctx, "SELECT id, name, email, created_at, updated_at FROM users WHERE email = $1", email)
+
+	var user User
+	if err := row.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}

@@ -29,7 +29,7 @@ func New(addingService AddingService) *App {
 }
 
 func (a *App) Routes() chi.Router {
-	a.publicRouter.Use(mw.Recover(), mw.ResponseTimeLogging(), mw.RequestBodyLogging())
+	a.publicRouter.Use(mw.Recover(), mw.ResponseTimeLogging())
 
 	a.publicRouter.Post("/users", httputil.Handler(a.handleCreateUser()))
 	return a.publicRouter
