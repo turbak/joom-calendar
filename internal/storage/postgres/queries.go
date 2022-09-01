@@ -184,7 +184,8 @@ func (q Queries) BatchCreateEventInvites(ctx context.Context, params []createEve
 
 func (q Queries) UpdateEventInviteStatus(ctx context.Context, inviteID int, status EventInviteStatus) (*EventInvite, error) {
 	const query = `UPDATE event_invites
-SET status = $1
+SET status = $1,
+    updated_at = NOW()
 WHERE id = $2
 RETURNING id, event_id, user_id, status, created_at, updated_at`
 
@@ -200,7 +201,8 @@ RETURNING id, event_id, user_id, status, created_at, updated_at`
 
 func (q Queries) UpdateEventAttendeeStatus(ctx context.Context, eventID int, userID int, status EventAttendeeStatus) (*EventAttendee, error) {
 	const query = `UPDATE event_attendees
-SET status = $1
+SET status = $1,
+    updated_at = NOW()
 WHERE event_id = $2
   AND user_id = $3
 RETURNING event_id, user_id, status, created_at, updated_at`
