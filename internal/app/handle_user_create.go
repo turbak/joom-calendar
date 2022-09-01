@@ -8,17 +8,18 @@ import (
 	"net/http"
 )
 
-func (a *App) handleCreateUser() httputil.HandlerFunc {
-	type request struct {
-		Name  string `json:"name"`
-		Email string `json:"email"`
-	}
-	type response struct {
-		ID int `json:"id"`
-	}
+type CreateUserRequest struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
 
+type CreateUserResponse struct {
+	ID int `json:"id"`
+}
+
+func (a *App) handleCreateUser() httputil.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) (interface{}, error) {
-		var args request
+		var args CreateUserRequest
 
 		if err := json.NewDecoder(req.Body).Decode(&args); err != nil {
 			return nil, CodableError{Err: err, StatusCode: http.StatusBadRequest}
@@ -38,6 +39,6 @@ func (a *App) handleCreateUser() httputil.HandlerFunc {
 			return nil, err
 		}
 
-		return response{ID: createdID}, nil
+		return CreateUserResponse{ID: createdID}, nil
 	}
 }

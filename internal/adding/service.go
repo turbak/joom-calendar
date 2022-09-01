@@ -5,13 +5,9 @@ import (
 	"github.com/turbak/joom-calendar/internal/pkg/logger"
 )
 
-type User struct {
-	Name  string
-	Email string
-}
-
 type Storage interface {
-	CreateUser(ctx context.Context, args User) (int, error)
+	CreateUser(ctx context.Context, user User) (int, error)
+	CreateEvent(ctx context.Context, event Event) (int, error)
 }
 
 type Service struct {
@@ -29,6 +25,17 @@ func (s *Service) CreateUser(ctx context.Context, user User) (int, error) {
 	}
 
 	logger.Debugf("user %d created successfully", createdID)
+
+	return createdID, nil
+}
+
+func (s *Service) CreateEvent(ctx context.Context, event Event) (int, error) {
+	createdID, err := s.storage.CreateEvent(ctx, event)
+	if err != nil {
+		return 0, err
+	}
+
+	logger.Debugf("event %d created successfully", createdID)
 
 	return createdID, nil
 }

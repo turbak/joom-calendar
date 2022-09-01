@@ -12,6 +12,7 @@ import (
 
 type AddingService interface {
 	CreateUser(ctx context.Context, user adding.User) (int, error)
+	CreateEvent(ctx context.Context, event adding.Event) (int, error)
 }
 
 type App struct {
@@ -32,6 +33,8 @@ func (a *App) Routes() chi.Router {
 	a.publicRouter.Use(mw.Recover(), mw.ResponseTimeLogging())
 
 	a.publicRouter.Post("/users", httputil.Handler(a.handleCreateUser()))
+
+	a.publicRouter.Post("/events", httputil.Handler(a.handleCreateEvent()))
 	return a.publicRouter
 }
 

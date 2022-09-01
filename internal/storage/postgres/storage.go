@@ -29,7 +29,7 @@ func (s *Storage) CreateUser(ctx context.Context, user adding.User) (int, error)
 			return adding.ErrUserAlreadyExists
 		}
 
-		createdID, err = q.CreateUser(ctx, createUserArgs{
+		createdID, err = q.CreateUser(ctx, createUserParams{
 			Name:  user.Name,
 			Email: user.Email,
 		})
