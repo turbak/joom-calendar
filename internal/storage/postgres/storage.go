@@ -2,10 +2,13 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/turbak/joom-calendar/internal/adding"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/turbak/joom-calendar/internal/adding"
+	"github.com/turbak/joom-calendar/internal/listing"
 )
 
 type Storage struct {
@@ -22,7 +25,9 @@ func (s *Storage) CreateUser(ctx context.Context, user adding.User) (int, error)
 	err := s.withTx(ctx, func(q Queries) error {
 		dbUser, err := q.GetUserByEmail(ctx, user.Email)
 		if err != nil {
-			return err
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
 		}
 
 		if dbUser != nil {
@@ -38,6 +43,81 @@ func (s *Storage) CreateUser(ctx context.Context, user adding.User) (int, error)
 		}
 
 		return nil
+	})
+
+	return createdID, err
+}
+
+func (s *Storage) BatchGetUserByIDs(ctx context.Context, IDs []int) ([]listing.User, error) {
+	users, err := Queries{execer: s.pool}.BatchGetUsersByIDs(ctx, IDs)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, listing.ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	res := make([]listing.User, 0, len(users))
+	for _, user := range users {
+		res = append(res, listing.User{
+			ID:        user.ID,
+			Name:      user.Name,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+		})
+	}
+
+	return res, nil
+}
+
+func (s *Storage) CreateEvent(ctx context.Context, event adding.Event) (int, error) {
+	var createdID int
+	var err error
+
+	err = s.withTx(ctx, func(q Queries) error {
+		createdID, err = q.CreateEvent(ctx, createEventParams{
+			Title:       event.Title,
+			Description: event.Description,
+			Duration:    event.Duration,
+		})
+		if err != nil {
+			return err
+		}
+
+		eventAttendees := make([]createEventAttendeeParams, 0, len(event.InvitedUserIDs)+1)
+		for _, userID := range event.InvitedUserIDs {
+			eventAttendees = append(eventAttendees, createEventAttendeeParams{
+				EventID: createdID,
+				UserID:  userID,
+				Status:  "pending",
+			})
+		}
+
+		eventAttendees = append(eventAttendees, createEventAttendeeParams{
+			EventID: createdID,
+			UserID:  event.OrganizerUserID,
+			Status:  "organizer",
+		})
+
+		err = q.BatchCreateEventAttendees(ctx, eventAttendees)
+		if err != nil {
+			return err
+		}
+
+		repeat := createEventRepeatParams{
+			StartDate: event.StartDate,
+		}
+
+		if event.Repeat != nil {
+			repeat.EventID = createdID
+			repeat.DayOfWeek = event.Repeat.DayOfWeek
+			repeat.DayOfMonth = event.Repeat.DayOfMonth
+			repeat.WeekOfMonth = event.Repeat.WeekOfMonth
+			repeat.MonthOfYear = event.Repeat.MonthOfYear
+		}
+
+		return q.CreateEventRepeat(ctx, repeat)
 	})
 
 	return createdID, err

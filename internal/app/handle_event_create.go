@@ -5,15 +5,15 @@ import (
 	"errors"
 	"github.com/turbak/joom-calendar/internal/adding"
 	httputil "github.com/turbak/joom-calendar/internal/pkg/http"
-	"golang.org/x/exp/maps"
 	"net/http"
+	"strconv"
 	"time"
 )
 
 type CreateEventRequest struct {
 	Title           string                    `json:"title"`
 	Desc            string                    `json:"desc"`
-	StartDate       time.Time                 `json:"start"`
+	StartDate       time.Time                 `json:"start_date"`
 	InvitedUserIDs  []int                     `json:"invited_user_ids"`
 	OrganizerUserID int                       `json:"organizer_user_id"`
 	Duration        int                       `json:"duration"`
@@ -21,9 +21,9 @@ type CreateEventRequest struct {
 }
 
 type CreateEventRequestRepeat struct {
-	DaysOfWeek  []int  `json:"days_of_week"`
-	DayOfMonth  int    `json:"day_of_month"`
-	MonthOfYear int    `json:"month_of_year"`
+	DayOfWeek   string `json:"day_of_week"`
+	DayOfMonth  string `json:"day_of_month"`
+	MonthOfYear string `json:"month_of_year"`
 	WeekOfMonth string `json:"week_of_month"`
 }
 
@@ -68,20 +68,11 @@ func toAddingEventRepeat(repeat *CreateEventRequestRepeat) *adding.EventRepeat {
 	}
 
 	return &adding.EventRepeat{
-		DaysOfWeek:  toAddingEventRepeatDaysOfWeek(repeat.DaysOfWeek),
+		DayOfWeek:   repeat.DayOfWeek,
 		DayOfMonth:  repeat.DayOfMonth,
-		MonthOfYear: time.Month(repeat.MonthOfYear),
+		MonthOfYear: repeat.MonthOfYear,
 		WeekOfMonth: repeat.WeekOfMonth,
 	}
-}
-
-func toAddingEventRepeatDaysOfWeek(weekday []int) []time.Weekday {
-	res := make(map[time.Weekday]struct{}, len(weekday))
-	for _, day := range weekday {
-		res[time.Weekday(day)] = struct{}{}
-	}
-
-	return maps.Keys(res)
 }
 
 func validateCreateEventRequest(args CreateEventRequest) error {
@@ -108,18 +99,47 @@ func validateCreateEventRequestRepeat(repeat *CreateEventRequestRepeat) error {
 		return nil
 	}
 
-	if repeat.MonthOfYear != 0 && repeat.MonthOfYear < 1 && repeat.MonthOfYear > 12 {
-		return CodableError{Err: errors.New("month_of_year must be between 1 and 12"), StatusCode: http.StatusBadRequest}
+	if repeat.MonthOfYear != "" && repeat.MonthOfYear != "*" {
+		monthOfYear, err := strconv.ParseInt(repeat.MonthOfYear, 10, 64)
+		if err != nil {
+			return CodableError{Err: errors.New("month_of_year must be a number or *"), StatusCode: http.StatusBadRequest}
+		}
+		if monthOfYear < 1 || monthOfYear > 12 {
+			return CodableError{Err: errors.New("month_of_year must be between 1 and 12"), StatusCode: http.StatusBadRequest}
+		}
 	}
 
 	if repeat.WeekOfMonth != "" && repeat.WeekOfMonth != "first" && repeat.WeekOfMonth != "second" && repeat.WeekOfMonth != "third" && repeat.WeekOfMonth != "fourth" && repeat.WeekOfMonth != "last" {
 		return CodableError{Err: errors.New("week_of_month must be one of first, second, third, fourth, last"), StatusCode: http.StatusBadRequest}
 	}
 
-	for _, day := range repeat.DaysOfWeek {
-		if day < 1 || day > 7 {
-			return CodableError{Err: errors.New("days_of_week must be between 1 and 7"), StatusCode: http.StatusBadRequest}
+	if repeat.DayOfMonth != "" && repeat.DayOfMonth != "*" {
+		dayOfMonth, err := strconv.ParseInt(repeat.DayOfMonth, 10, 64)
+		if err != nil {
+			return CodableError{Err: errors.New("day_of_month must be a number or *"), StatusCode: http.StatusBadRequest}
+		}
+		if dayOfMonth < 1 || dayOfMonth > 31 {
+			return CodableError{Err: errors.New("day_of_month must be between 1 and 31"), StatusCode: http.StatusBadRequest}
 		}
 	}
+
+	if repeat.DayOfWeek != "" && repeat.DayOfWeek != "*" {
+		dayOfWeek, err := strconv.ParseInt(repeat.DayOfWeek, 10, 64)
+		if err != nil {
+			return CodableError{Err: errors.New("day_of_week must be a number or *"), StatusCode: http.StatusBadRequest}
+		}
+		if dayOfWeek < 1 || dayOfWeek > 7 {
+			return CodableError{Err: errors.New("day_of_week must be between 1 and 7"), StatusCode: http.StatusBadRequest}
+		}
+	}
+
+	if repeat.DayOfWeek != "" && repeat.DayOfMonth != "" {
+		return CodableError{Err: errors.New("day_of_week and day_of_month cannot be both set"), StatusCode: http.StatusBadRequest}
+	}
+
+	if repeat.DayOfMonth != "" && repeat.WeekOfMonth != "" {
+		return CodableError{Err: errors.New("day_of_month and week_of_month cannot be both set"), StatusCode: http.StatusBadRequest}
+	}
+
 	return nil
 }

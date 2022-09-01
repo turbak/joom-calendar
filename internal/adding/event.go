@@ -13,8 +13,8 @@ type Event struct {
 }
 
 type EventRepeat struct {
-	DaysOfWeek  []time.Weekday
-	DayOfMonth  int
-	MonthOfYear time.Month
+	DayOfWeek   string
+	DayOfMonth  string
+	MonthOfYear string
 	WeekOfMonth string
 }

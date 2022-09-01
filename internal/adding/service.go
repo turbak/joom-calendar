@@ -2,12 +2,15 @@ package adding
 
 import (
 	"context"
+	"github.com/turbak/joom-calendar/internal/listing"
 	"github.com/turbak/joom-calendar/internal/pkg/logger"
 )
 
 type Storage interface {
 	CreateUser(ctx context.Context, user User) (int, error)
 	CreateEvent(ctx context.Context, event Event) (int, error)
+
+	BatchGetUserByIDs(ctx context.Context, IDs []int) ([]listing.User, error)
 }
 
 type Service struct {
@@ -30,6 +33,15 @@ func (s *Service) CreateUser(ctx context.Context, user User) (int, error) {
 }
 
 func (s *Service) CreateEvent(ctx context.Context, event Event) (int, error) {
+	users, err := s.storage.BatchGetUserByIDs(ctx, append(event.InvitedUserIDs, event.OrganizerUserID))
+	if err != nil {
+		return 0, err
+	}
+
+	if len(users) != len(event.InvitedUserIDs)+1 {
+		return 0, ErrSomeUsersNotFound
+	}
+
 	createdID, err := s.storage.CreateEvent(ctx, event)
 	if err != nil {
 		return 0, err

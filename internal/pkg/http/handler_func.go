@@ -22,6 +22,7 @@ func Handler(f HandlerFunc) func(w http.ResponseWriter, r *http.Request) {
 				code = err.Code()
 			}
 			http.Error(w, err.Error(), code)
+			logger.Errorf("error while performing %s %s: %s", r.Method, r.RequestURI, err.Error())
 			return
 		}
 

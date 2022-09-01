@@ -31,10 +31,10 @@ CREATE TABLE event_repeats (
     id serial PRIMARY KEY,
     event_id integer NOT NULL,
     repeat_start_date timestamp NOT NULL,
-    days_of_week integer ARRAY,
-    day_of_month integer,
-    month_of_year integer,
-    week_of_month TEXT,
+    day_of_week TEXT NOT NULL,
+    day_of_month TEXT NOT NULL,
+    month_of_year TEXT NOT NULL,
+    week_of_month TEXT NOT NULL,
     created_at timestamp NOT NULL DEFAULT now(),
     updated_at timestamp NOT NULL DEFAULT now()
 );

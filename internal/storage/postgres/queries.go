@@ -8,9 +8,7 @@ import (
 	"time"
 )
 
-func init() {
-	squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
-}
+var pgQb = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 type Execer interface {
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
@@ -74,19 +72,20 @@ type createEventAttendeeParams struct {
 }
 
 func (q Queries) BatchCreateEventAttendees(ctx context.Context, params []createEventAttendeeParams) error {
-	qb := squirrel.Insert("event_attendees").
+	qb := pgQb.
+		Insert("event_attendees").
 		Columns("event_id", "user_id", "status")
 
 	for _, attendee := range params {
 		qb = qb.Values(attendee.EventID, attendee.UserID, attendee.Status)
 	}
 
-	sql, args, err := qb.ToSql()
+	query, args, err := qb.ToSql()
 	if err != nil {
 		return err
 	}
 
-	_, err = q.execer.Exec(ctx, sql, args...)
+	_, err = q.execer.Exec(ctx, query, args...)
 
 	return err
 }
@@ -94,20 +93,48 @@ func (q Queries) BatchCreateEventAttendees(ctx context.Context, params []createE
 type createEventRepeatParams struct {
 	EventID     int
 	StartDate   time.Time
-	DaysOfWeek  []int
-	DayOfMonth  int
-	MonthOfYear int
+	DayOfWeek   string
+	DayOfMonth  string
+	MonthOfYear string
+	WeekOfMonth string
 }
 
 func (q Queries) CreateEventRepeat(ctx context.Context, params createEventRepeatParams) error {
 	const query = `INSERT INTO event_repeats
-    			(event_id, start_date, days_of_week, day_of_month, month_of_year)
+    			(event_id, repeat_start_date, days_of_week, day_of_month, month_of_year, week_of_month)
     				VALUES ($1, $2, $3, $4, $5)`
 
-	_, err := q.execer.Exec(ctx, query, params.EventID, params.StartDate, params.DaysOfWeek, params.DayOfMonth, params.MonthOfYear)
+	_, err := q.execer.Exec(ctx, query, params.EventID, params.StartDate, params.DayOfWeek, params.DayOfMonth, params.MonthOfYear, params.WeekOfMonth)
 	if err != nil {
 		return err
 	}
 
 	return err
+}
+
+func (q Queries) BatchGetUsersByIDs(ctx context.Context, IDs []int) ([]User, error) {
+	query, args, err := pgQb.
+		Select("id", "name", "email", "created_at", "updated_at").
+		From("users").
+		Where(squirrel.Eq{"id": IDs}).
+		ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := q.execer.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var users []User
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
 }
