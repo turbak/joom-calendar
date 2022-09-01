@@ -10,14 +10,14 @@ import (
 
 var pgQb = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
-type Execer interface {
+type Querier interface {
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
 	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
 }
 
 type Queries struct {
-	execer Execer
+	querier Querier
 }
 
 type createUserParams struct {
@@ -26,7 +26,7 @@ type createUserParams struct {
 }
 
 func (q Queries) CreateUser(ctx context.Context, params createUserParams) (int, error) {
-	row := q.execer.QueryRow(ctx, "INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id", params.Name, params.Email)
+	row := q.querier.QueryRow(ctx, "INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id", params.Name, params.Email)
 	var ID int
 	if err := row.Scan(&ID); err != nil {
 		return 0, err
@@ -35,7 +35,7 @@ func (q Queries) CreateUser(ctx context.Context, params createUserParams) (int, 
 }
 
 func (q Queries) GetUserByEmail(ctx context.Context, email string) (*User, error) {
-	row := q.execer.QueryRow(ctx, "SELECT id, name, email, created_at, updated_at FROM users WHERE email = $1", email)
+	row := q.querier.QueryRow(ctx, "SELECT id, name, email, created_at, updated_at FROM users WHERE email = $1", email)
 
 	var user User
 	if err := row.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt); err != nil {
@@ -52,7 +52,7 @@ type createEventParams struct {
 }
 
 func (q Queries) CreateEvent(ctx context.Context, params createEventParams) (int, error) {
-	row := q.execer.QueryRow(ctx, `INSERT INTO events 
+	row := q.querier.QueryRow(ctx, `INSERT INTO events 
     			(title, description, duration) 
 				VALUES ($1, $2, $3) RETURNING id`,
 		params.Title, params.Description, params.Duration)
@@ -67,8 +67,7 @@ func (q Queries) CreateEvent(ctx context.Context, params createEventParams) (int
 type createEventAttendeeParams struct {
 	EventID int
 	UserID  int
-	//TODO: add special type for Status
-	Status string
+	Status  EventAttendeeStatus
 }
 
 func (q Queries) BatchCreateEventAttendees(ctx context.Context, params []createEventAttendeeParams) error {
@@ -85,7 +84,7 @@ func (q Queries) BatchCreateEventAttendees(ctx context.Context, params []createE
 		return err
 	}
 
-	_, err = q.execer.Exec(ctx, query, args...)
+	_, err = q.querier.Exec(ctx, query, args...)
 
 	return err
 }
@@ -104,7 +103,7 @@ func (q Queries) CreateEventRepeat(ctx context.Context, params createEventRepeat
 (event_id, repeat_start_date, day_of_week, day_of_month, month_of_year, week_of_month)
 VALUES ($1, $2, $3, $4, $5, $6)`
 
-	_, err := q.execer.Exec(
+	_, err := q.querier.Exec(
 		ctx,
 		query,
 		params.EventID,
@@ -131,7 +130,7 @@ func (q Queries) BatchGetUsersByIDs(ctx context.Context, IDs []int) ([]User, err
 		return nil, err
 	}
 
-	rows, err := q.execer.Query(ctx, query, args...)
+	rows, err := q.querier.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +148,7 @@ func (q Queries) BatchGetUsersByIDs(ctx context.Context, IDs []int) ([]User, err
 }
 
 func (q Queries) GetEventByID(ctx context.Context, ID int) (*Event, error) {
-	row := q.execer.QueryRow(ctx, "SELECT id, title, description, duration, created_at, updated_at FROM events WHERE id = $1", ID)
+	row := q.querier.QueryRow(ctx, "SELECT id, title, description, duration, created_at, updated_at FROM events WHERE id = $1", ID)
 
 	var event Event
 	if err := row.Scan(&event.ID, &event.Title, &event.Description, &event.Duration, &event.CreatedAt, &event.UpdatedAt); err != nil {
@@ -157,4 +156,70 @@ func (q Queries) GetEventByID(ctx context.Context, ID int) (*Event, error) {
 	}
 
 	return &event, nil
+}
+
+type createEventInviteParams struct {
+	EventID int
+	UserID  int
+}
+
+func (q Queries) BatchCreateEventInvites(ctx context.Context, params []createEventInviteParams) error {
+	qb := pgQb.
+		Insert("event_invites").
+		Columns("event_id", "user_id")
+
+	for _, invite := range params {
+		qb = qb.Values(invite.EventID, invite.UserID)
+	}
+
+	query, args, err := qb.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = q.querier.Exec(ctx, query, args...)
+
+	return err
+}
+
+func (q Queries) UpdateEventInviteStatus(ctx context.Context, inviteID int, status EventInviteStatus) (*EventInvite, error) {
+	const query = `UPDATE event_invites
+SET status = $1
+WHERE id = $2
+RETURNING id, event_id, user_id, status, created_at, updated_at`
+
+	row := q.querier.QueryRow(ctx, query, status, inviteID)
+
+	var invite EventInvite
+	if err := row.Scan(&invite.ID, &invite.EventID, &invite.UserID, &invite.Status, &invite.CreatedAt, &invite.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	return &invite, nil
+}
+
+func (q Queries) UpdateEventAttendeeStatus(ctx context.Context, eventID int, userID int, status EventAttendeeStatus) (*EventAttendee, error) {
+	const query = `UPDATE event_attendees
+SET status = $1
+WHERE event_id = $2
+  AND user_id = $3
+RETURNING event_id, user_id, status, created_at, updated_at`
+
+	row := q.querier.QueryRow(ctx, query, status, eventID, userID)
+
+	var attendee EventAttendee
+	if err := row.Scan(&attendee.EventID, &attendee.UserID, &attendee.Status, &attendee.CreatedAt, &attendee.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	return &attendee, nil
+}
+
+func (q Queries) DeleteEventAttendee(ctx context.Context, eventID int, userID int) error {
+	const query = `DELETE FROM event_attendees
+WHERE event_id = $1
+  AND user_id = $2`
+
+	_, err := q.querier.Exec(ctx, query, eventID, userID)
+	return err
 }

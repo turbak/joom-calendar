@@ -20,29 +20,39 @@ type Lister interface {
 	GetEventByID(ctx context.Context, eventID int) (*listing.Event, error)
 }
 
+type Inviter interface {
+	AcceptInvite(ctx context.Context, inviteID int) error
+	DeclineInvite(ctx context.Context, inviteID int) error
+}
+
 type App struct {
 	publicRouter chi.Router
 
 	creator Creator
 	lister  Lister
+	inviter Inviter
 }
 
-func New(addingService Creator, lister Lister) *App {
+func New(creator Creator, lister Lister, inviter Inviter) *App {
 	a := &App{
-		publicRouter: chi.NewRouter(),
-		creator:      addingService,
-		lister:       lister,
+		creator: creator,
+		lister:  lister,
+		inviter: inviter,
 	}
 	return a
 }
 
 func (a *App) Routes() chi.Router {
+	a.publicRouter = chi.NewRouter()
 	a.publicRouter.Use(mw.Recover(), mw.ResponseTimeLogging())
 
 	a.publicRouter.Post("/users", httputil.Handler(a.handleCreateUser()))
 
 	a.publicRouter.Post("/events", httputil.Handler(a.handleCreateEvent()))
 	a.publicRouter.Get("/events/{event_id}", httputil.Handler(a.handleGetEvent()))
+
+	a.publicRouter.Post("/event-invites/{invite_id}:accept", httputil.Handler(a.handleAcceptInvite()))
+	a.publicRouter.Post("/event-invites/{invite_id}:decline", httputil.Handler(a.handleDeclineInvite()))
 
 	return a.publicRouter
 }

@@ -19,6 +19,16 @@ CREATE TABLE events (
 );
 
 CREATE TABLE event_attendees (
+    event_id integer NOT NULL,
+    user_id integer NOT NULL,
+    status TEXT NOT NULL default 'unconfirmed',
+    created_at timestamp NOT NULL DEFAULT now(),
+    updated_at timestamp NOT NULL DEFAULT now(),
+    
+    PRIMARY KEY (event_id, user_id)
+);
+
+CREATE TABLE event_invites (
     id serial PRIMARY KEY,
     event_id integer NOT NULL,
     user_id integer NOT NULL,

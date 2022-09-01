@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/turbak/joom-calendar/internal/inviting"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -49,7 +50,7 @@ func (s *Storage) CreateUser(ctx context.Context, user creating.User) (int, erro
 }
 
 func (s *Storage) BatchGetUserByIDs(ctx context.Context, IDs []int) ([]listing.User, error) {
-	users, err := Queries{execer: s.pool}.BatchGetUsersByIDs(ctx, IDs)
+	users, err := Queries{querier: s.pool}.BatchGetUsersByIDs(ctx, IDs)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, listing.ErrUserNotFound
@@ -86,19 +87,29 @@ func (s *Storage) CreateEvent(ctx context.Context, event creating.Event) (int, e
 		}
 
 		eventAttendees := make([]createEventAttendeeParams, 0, len(event.InvitedUserIDs)+1)
+		eventInvites := make([]createEventInviteParams, 0, len(event.InvitedUserIDs))
 		for _, userID := range event.InvitedUserIDs {
 			eventAttendees = append(eventAttendees, createEventAttendeeParams{
 				EventID: createdID,
 				UserID:  userID,
-				Status:  "pending",
+				Status:  EventAttendeeStatusUnconfirmed,
+			})
+			eventInvites = append(eventInvites, createEventInviteParams{
+				EventID: createdID,
+				UserID:  userID,
 			})
 		}
 
 		eventAttendees = append(eventAttendees, createEventAttendeeParams{
 			EventID: createdID,
 			UserID:  event.OrganizerUserID,
-			Status:  "organizer",
+			Status:  EventAttendeeStatusOrganizer,
 		})
+
+		err = q.BatchCreateEventInvites(ctx, eventInvites)
+		if err != nil {
+			return err
+		}
 
 		err = q.BatchCreateEventAttendees(ctx, eventAttendees)
 		if err != nil {
@@ -124,7 +135,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event creating.Event) (int, e
 }
 
 func (s *Storage) GetEventByID(ctx context.Context, ID int) (*listing.Event, error) {
-	event, err := Queries{execer: s.pool}.GetEventByID(ctx, ID)
+	event, err := Queries{querier: s.pool}.GetEventByID(ctx, ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, listing.ErrEventNotFound
@@ -142,13 +153,40 @@ func (s *Storage) GetEventByID(ctx context.Context, ID int) (*listing.Event, err
 	}, nil
 }
 
+func (s *Storage) UpdateEventInviteStatus(ctx context.Context, inviteID int, status string) error {
+	return s.withTx(ctx, func(q Queries) error {
+		invite, err := q.UpdateEventInviteStatus(ctx, inviteID, EventInviteStatus(status))
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return inviting.ErrInviteNotFound
+			}
+		}
+
+		if invite.Status == EventInviteStatusAccepted {
+			_, err = q.UpdateEventAttendeeStatus(ctx, invite.EventID, invite.UserID, EventAttendeeStatusConfirmed)
+			if err != nil {
+				return err
+			}
+		}
+
+		if invite.Status == EventInviteStatusDeclined {
+			err = q.DeleteEventAttendee(ctx, invite.EventID, invite.UserID)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
 func (s *Storage) withTx(ctx context.Context, f func(q Queries) error) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 
-	q := Queries{execer: tx}
+	q := Queries{querier: tx}
 
 	if err = f(q); err != nil {
 		if rbErr := tx.Rollback(ctx); rbErr != nil {

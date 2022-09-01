@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/turbak/joom-calendar/internal/app"
 	"github.com/turbak/joom-calendar/internal/creating"
+	"github.com/turbak/joom-calendar/internal/inviting"
 	"github.com/turbak/joom-calendar/internal/listing"
 	"github.com/turbak/joom-calendar/internal/pkg/logger"
 	"github.com/turbak/joom-calendar/internal/storage/postgres"
@@ -23,9 +24,10 @@ func main() {
 
 	addingSvc := creating.NewService(storage)
 	listingSvc := listing.NewService(storage)
+	invitingSvc := inviting.NewService(storage)
 
 	err = app.
-		New(addingSvc, listingSvc).
+		New(addingSvc, listingSvc, invitingSvc).
 		Run(":" + os.Getenv("PORT"))
 	if err != nil {
 		logger.Fatalf("failed to run app: %v", err)
