@@ -3,7 +3,7 @@ package app
 import (
 	"encoding/json"
 	"errors"
-	"github.com/turbak/joom-calendar/internal/adding"
+	"github.com/turbak/joom-calendar/internal/creating"
 	httputil "github.com/turbak/joom-calendar/internal/pkg/http"
 	"net/http"
 	"strconv"
@@ -43,7 +43,7 @@ func (a *App) handleCreateEvent() httputil.HandlerFunc {
 			return nil, err
 		}
 
-		event := adding.Event{
+		event := creating.Event{
 			Title:           args.Title,
 			Description:     args.Desc,
 			StartDate:       args.StartDate,
@@ -53,7 +53,7 @@ func (a *App) handleCreateEvent() httputil.HandlerFunc {
 			Repeat:          toAddingEventRepeat(args.Repeat),
 		}
 
-		createdID, err := a.addingService.CreateEvent(req.Context(), event)
+		createdID, err := a.creator.CreateEvent(req.Context(), event)
 		if err != nil {
 			return nil, err
 		}
@@ -62,12 +62,12 @@ func (a *App) handleCreateEvent() httputil.HandlerFunc {
 	}
 }
 
-func toAddingEventRepeat(repeat *CreateEventRequestRepeat) *adding.EventRepeat {
+func toAddingEventRepeat(repeat *CreateEventRequestRepeat) *creating.EventRepeat {
 	if repeat == nil {
 		return nil
 	}
 
-	return &adding.EventRepeat{
+	return &creating.EventRepeat{
 		DayOfWeek:   repeat.DayOfWeek,
 		DayOfMonth:  repeat.DayOfMonth,
 		MonthOfYear: repeat.MonthOfYear,

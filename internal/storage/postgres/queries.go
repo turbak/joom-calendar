@@ -101,10 +101,19 @@ type createEventRepeatParams struct {
 
 func (q Queries) CreateEventRepeat(ctx context.Context, params createEventRepeatParams) error {
 	const query = `INSERT INTO event_repeats
-    			(event_id, repeat_start_date, days_of_week, day_of_month, month_of_year, week_of_month)
-    				VALUES ($1, $2, $3, $4, $5)`
+(event_id, repeat_start_date, day_of_week, day_of_month, month_of_year, week_of_month)
+VALUES ($1, $2, $3, $4, $5, $6)`
 
-	_, err := q.execer.Exec(ctx, query, params.EventID, params.StartDate, params.DayOfWeek, params.DayOfMonth, params.MonthOfYear, params.WeekOfMonth)
+	_, err := q.execer.Exec(
+		ctx,
+		query,
+		params.EventID,
+		params.StartDate,
+		params.DayOfWeek,
+		params.DayOfMonth,
+		params.MonthOfYear,
+		params.WeekOfMonth,
+	)
 	if err != nil {
 		return err
 	}
@@ -137,4 +146,15 @@ func (q Queries) BatchGetUsersByIDs(ctx context.Context, IDs []int) ([]User, err
 	}
 
 	return users, nil
+}
+
+func (q Queries) GetEventByID(ctx context.Context, ID int) (*Event, error) {
+	row := q.execer.QueryRow(ctx, "SELECT id, title, description, duration, created_at, updated_at FROM events WHERE id = $1", ID)
+
+	var event Event
+	if err := row.Scan(&event.ID, &event.Title, &event.Description, &event.Duration, &event.CreatedAt, &event.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	return &event, nil
 }

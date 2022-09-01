@@ -1,4 +1,4 @@
-package adding
+package creating
 
 import "errors"
 

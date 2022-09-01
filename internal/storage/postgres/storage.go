@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/turbak/joom-calendar/internal/adding"
+	"github.com/turbak/joom-calendar/internal/creating"
 	"github.com/turbak/joom-calendar/internal/listing"
 )
 
@@ -19,7 +19,7 @@ func NewStorage(pool *pgxpool.Pool) *Storage {
 	return &Storage{pool: pool}
 }
 
-func (s *Storage) CreateUser(ctx context.Context, user adding.User) (int, error) {
+func (s *Storage) CreateUser(ctx context.Context, user creating.User) (int, error) {
 	var createdID int
 
 	err := s.withTx(ctx, func(q Queries) error {
@@ -31,7 +31,7 @@ func (s *Storage) CreateUser(ctx context.Context, user adding.User) (int, error)
 		}
 
 		if dbUser != nil {
-			return adding.ErrUserAlreadyExists
+			return creating.ErrUserAlreadyExists
 		}
 
 		createdID, err = q.CreateUser(ctx, createUserParams{
@@ -71,7 +71,7 @@ func (s *Storage) BatchGetUserByIDs(ctx context.Context, IDs []int) ([]listing.U
 	return res, nil
 }
 
-func (s *Storage) CreateEvent(ctx context.Context, event adding.Event) (int, error) {
+func (s *Storage) CreateEvent(ctx context.Context, event creating.Event) (int, error) {
 	var createdID int
 	var err error
 
@@ -121,6 +121,25 @@ func (s *Storage) CreateEvent(ctx context.Context, event adding.Event) (int, err
 	})
 
 	return createdID, err
+}
+
+func (s *Storage) GetEventByID(ctx context.Context, ID int) (*listing.Event, error) {
+	event, err := Queries{execer: s.pool}.GetEventByID(ctx, ID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, listing.ErrEventNotFound
+		}
+		return nil, err
+	}
+
+	return &listing.Event{
+		ID:          event.ID,
+		Title:       event.Title,
+		Description: event.Description,
+		Duration:    event.Duration,
+		CreatedAt:   event.CreatedAt,
+		UpdatedAt:   event.UpdatedAt,
+	}, nil
 }
 
 func (s *Storage) withTx(ctx context.Context, f func(q Queries) error) error {
