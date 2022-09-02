@@ -1,9 +1,13 @@
 package listing
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type Storage interface {
 	GetEventByID(ctx context.Context, ID int) (*Event, error)
+	ListUsersEvents(ctx context.Context, userID int, from, to time.Time) ([]Event, error)
 }
 
 type Service struct {
@@ -23,4 +27,13 @@ func (s *Service) GetEventByID(ctx context.Context, ID int) (*Event, error) {
 	}
 
 	return event, nil
+}
+
+func (s *Service) ListUsersEvents(ctx context.Context, userID int, from, to time.Time) ([]Event, error) {
+	events, err := s.storage.ListUsersEvents(ctx, userID, from, to)
+	if err != nil {
+		return nil, err
+	}
+
+	return events, nil
 }

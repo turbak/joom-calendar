@@ -3,8 +3,8 @@ package postgres
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/turbak/joom-calendar/internal/inviting"
+	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -23,7 +23,7 @@ func NewStorage(pool *pgxpool.Pool) *Storage {
 func (s *Storage) CreateUser(ctx context.Context, user creating.User) (int, error) {
 	var createdID int
 
-	err := s.withTx(ctx, func(q Queries) error {
+	err := s.withTx(ctx, pgx.TxOptions{}, func(q Queries) error {
 		dbUser, err := q.GetUserByEmail(ctx, user.Email)
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
@@ -76,7 +76,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event creating.Event) (int, e
 	var createdID int
 	var err error
 
-	err = s.withTx(ctx, func(q Queries) error {
+	err = s.withTx(ctx, pgx.TxOptions{}, func(q Queries) error {
 		createdID, err = q.CreateEvent(ctx, createEventParams{
 			Title:       event.Title,
 			Description: event.Description,
@@ -106,9 +106,11 @@ func (s *Storage) CreateEvent(ctx context.Context, event creating.Event) (int, e
 			Status:  EventAttendeeStatusOrganizer,
 		})
 
-		err = q.BatchCreateEventInvites(ctx, eventInvites)
-		if err != nil {
-			return err
+		if len(eventInvites) > 0 {
+			err = q.BatchCreateEventInvites(ctx, eventInvites)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = q.BatchCreateEventAttendees(ctx, eventAttendees)
@@ -135,11 +137,25 @@ func (s *Storage) CreateEvent(ctx context.Context, event creating.Event) (int, e
 }
 
 func (s *Storage) GetEventByID(ctx context.Context, ID int) (*listing.Event, error) {
-	event, err := Queries{querier: s.pool}.GetEventByID(ctx, ID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, listing.ErrEventNotFound
+	var event FullEvent
+	var attendees []FullEventAttendee
+
+	err := s.withTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly}, func(q Queries) error {
+		foundEvent, err := q.GetFullEventByID(ctx, ID)
+		if err != nil {
+			return listing.ErrEventNotFound
 		}
+
+		event = *foundEvent
+
+		attendees, err = q.BatchGetFullEventAttendees(ctx, event.ID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -148,13 +164,15 @@ func (s *Storage) GetEventByID(ctx context.Context, ID int) (*listing.Event, err
 		Title:       event.Title,
 		Description: event.Description,
 		Duration:    event.Duration,
+		Attendees:   toListingEventAttendees(attendees),
+		Repeat:      toListingEventRepeat(event.Repeat),
 		CreatedAt:   event.CreatedAt,
 		UpdatedAt:   event.UpdatedAt,
 	}, nil
 }
 
 func (s *Storage) UpdateEventInviteStatus(ctx context.Context, inviteID int, status string) error {
-	return s.withTx(ctx, func(q Queries) error {
+	return s.withTx(ctx, pgx.TxOptions{}, func(q Queries) error {
 		invite, err := q.UpdateEventInviteStatus(ctx, inviteID, EventInviteStatus(status))
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -180,24 +198,41 @@ func (s *Storage) UpdateEventInviteStatus(ctx context.Context, inviteID int, sta
 	})
 }
 
-func (s *Storage) withTx(ctx context.Context, f func(q Queries) error) error {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %v", err)
-	}
+func (s *Storage) withTx(ctx context.Context, options pgx.TxOptions, f func(q Queries) error) error {
+	return s.pool.BeginTxFunc(ctx, options, func(tx pgx.Tx) error {
+		return f(Queries{querier: tx})
+	})
+}
 
-	q := Queries{querier: tx}
+func (s *Storage) ListUsersEvents(ctx context.Context, userID int, from, to time.Time) ([]listing.Event, error) {
+	var events []FullEvent
+	var attendees []FullEventAttendee
 
-	if err = f(q); err != nil {
-		if rbErr := tx.Rollback(ctx); rbErr != nil {
-			return fmt.Errorf("failed to exec queries: %v", fmt.Errorf("failed to rollback transaction: %v", rbErr))
+	err := s.withTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly}, func(q Queries) error {
+		var err error
+		events, err = q.ListUsersEvents(ctx, userID, from, to)
+		if err != nil {
+			return err
 		}
-		return err
+
+		attendees, err = q.BatchGetFullEventAttendees(ctx, pluckEventIDs(events)...)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	if err = tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
-	}
+	return toListingEvents(events, attendees), nil
+}
 
-	return nil
+func pluckEventIDs(events []FullEvent) []int {
+	ids := make([]int, 0, len(events))
+	for _, event := range events {
+		ids = append(ids, event.ID)
+	}
+	return ids
 }

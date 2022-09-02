@@ -17,3 +17,12 @@ const (
 	EventAttendeeStatusConfirmed   EventAttendeeStatus = "confirmed"
 	EventAttendeeStatusOrganizer   EventAttendeeStatus = "organizer"
 )
+
+// FullEventAttendee is an event attendee with user data
+type FullEventAttendee struct {
+	EventID   int
+	Status    EventAttendeeStatus
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	User      User
+}

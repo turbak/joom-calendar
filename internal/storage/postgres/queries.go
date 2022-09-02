@@ -147,12 +147,51 @@ func (q Queries) BatchGetUsersByIDs(ctx context.Context, IDs []int) ([]User, err
 	return users, nil
 }
 
-func (q Queries) GetEventByID(ctx context.Context, ID int) (*Event, error) {
-	row := q.querier.QueryRow(ctx, "SELECT id, title, description, duration, created_at, updated_at FROM events WHERE id = $1", ID)
-
-	var event Event
-	if err := row.Scan(&event.ID, &event.Title, &event.Description, &event.Duration, &event.CreatedAt, &event.UpdatedAt); err != nil {
+func (q Queries) GetFullEventByID(ctx context.Context, ID int) (*FullEvent, error) {
+	query, args, err := pgQb.
+		Select(
+			"e.id",
+			"e.title",
+			"e.description",
+			"e.duration",
+			"e.created_at",
+			"e.updated_at",
+			"er.repeat_start_date",
+			"er.day_of_week",
+			"er.day_of_month",
+			"er.month_of_year",
+			"er.week_of_month",
+		).
+		From("events e").
+		InnerJoin("event_repeats er ON er.event_id = e.id").
+		Where(squirrel.Eq{"e.id": ID}).
+		ToSql()
+	if err != nil {
 		return nil, err
+	}
+
+	rows, err := q.querier.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var event FullEvent
+	for rows.Next() {
+		if err := rows.Scan(
+			&event.ID,
+			&event.Title,
+			&event.Description,
+			&event.Duration,
+			&event.CreatedAt,
+			&event.UpdatedAt,
+			&event.Repeat.StartDate,
+			&event.Repeat.DayOfWeek,
+			&event.Repeat.DayOfMonth,
+			&event.Repeat.MonthOfYear,
+			&event.Repeat.WeekOfMonth,
+		); err != nil {
+			return nil, err
+		}
 	}
 
 	return &event, nil
@@ -224,4 +263,74 @@ WHERE event_id = $1
 
 	_, err := q.querier.Exec(ctx, query, eventID, userID)
 	return err
+}
+
+func (q Queries) BatchGetFullEventAttendees(ctx context.Context, eventIDs ...int) ([]FullEventAttendee, error) {
+	query, args, err := pgQb.
+		Select(
+			"event_attendees.event_id",
+			"event_attendees.status",
+			"event_attendees.created_at",
+			"event_attendees.updated_at",
+			"users.id",
+			"users.name",
+			"users.email",
+			"users.created_at",
+			"users.updated_at",
+		).
+		From("event_attendees").
+		Join("users ON event_attendees.user_id = users.id").
+		Where(squirrel.Eq{"event_attendees.event_id": eventIDs}).
+		ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := q.querier.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var attendees []FullEventAttendee
+	for rows.Next() {
+		var attendee FullEventAttendee
+		if err := rows.Scan(
+			&attendee.EventID,
+			&attendee.Status,
+			&attendee.CreatedAt,
+			&attendee.UpdatedAt,
+			&attendee.User.ID,
+			&attendee.User.Name,
+			&attendee.User.Email,
+			&attendee.User.CreatedAt,
+			&attendee.User.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		attendees = append(attendees, attendee)
+	}
+
+	return attendees, nil
+}
+
+func (q Queries) ListUsersEvents(ctx context.Context, ID int, from time.Time, to time.Time) ([]FullEvent, error) {
+	const query = `SELECT e.id,
+       e.title,
+       e.description,
+       e.duration,
+       e.created_at,
+       e.updated_at,
+       er.repeat_start_date,
+       er.day_of_week,
+       er.day_of_month,
+       er.month_of_year,
+       er.week_of_month
+FROM events e
+         INNER JOIN event_repeats er on e.id = er.event_id
+WHERE er.repeat_start_date::date BETWEEN $1::date AND $2::date
+OR (er.week_of_month >= extract(week from $1::date) AND er.week_of_month <= extract(week from $2::date))
+OR (er.day_of_week >= extract(dow from $1::date) AND er.day_of_week <= extract(dow from $2::date))
+OR (er.day_of_month >= extract(day from $1::date) AND er.day_of_month <= extract(day from $2::date))
+OR (er.month_of_year >= extract(month from $1::date) AND er.month_of_year <= extract(month from $2::date))
+`
 }
