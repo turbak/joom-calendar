@@ -81,6 +81,11 @@ func (s *Storage) CreateEvent(ctx context.Context, event creating.Event) (int, e
 			Title:       event.Title,
 			Description: event.Description,
 			Duration:    event.Duration,
+			StartDate:   event.StartDate,
+			DaysOfWeek:  event.Repeat.DaysOfWeek,
+			DayOfMonth:  event.Repeat.DayOfMonth,
+			MonthOfYear: event.Repeat.MonthOfYear,
+			WeekOfMonth: event.Repeat.WeekOfMonth,
 		})
 		if err != nil {
 			return err
@@ -113,37 +118,23 @@ func (s *Storage) CreateEvent(ctx context.Context, event creating.Event) (int, e
 			}
 		}
 
-		err = q.BatchCreateEventAttendees(ctx, eventAttendees)
-		if err != nil {
-			return err
-		}
-
-		repeat := createEventRepeatParams{
-			StartDate: event.StartDate,
-		}
-
-		if event.Repeat != nil {
-			repeat.EventID = createdID
-			repeat.DayOfWeek = event.Repeat.DayOfWeek
-			repeat.DayOfMonth = event.Repeat.DayOfMonth
-			repeat.WeekOfMonth = event.Repeat.WeekOfMonth
-			repeat.MonthOfYear = event.Repeat.MonthOfYear
-		}
-
-		return q.CreateEventRepeat(ctx, repeat)
+		return q.BatchCreateEventAttendees(ctx, eventAttendees)
 	})
 
 	return createdID, err
 }
 
 func (s *Storage) GetEventByID(ctx context.Context, ID int) (*listing.Event, error) {
-	var event FullEvent
+	var event Event
 	var attendees []FullEventAttendee
 
 	err := s.withTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly}, func(q Queries) error {
-		foundEvent, err := q.GetFullEventByID(ctx, ID)
+		foundEvent, err := q.GetEventByID(ctx, ID)
 		if err != nil {
-			return listing.ErrEventNotFound
+			if errors.Is(err, pgx.ErrNoRows) {
+				return listing.ErrEventNotFound
+			}
+			return err
 		}
 
 		event = *foundEvent
@@ -164,8 +155,12 @@ func (s *Storage) GetEventByID(ctx context.Context, ID int) (*listing.Event, err
 		Title:       event.Title,
 		Description: event.Description,
 		Duration:    event.Duration,
+		StartDate:   event.StartDate,
+		DaysOfWeek:  event.DaysOfWeek,
+		DayOfMonth:  event.DayOfMonth,
+		MonthOfYear: event.MonthOfYear,
+		WeekOfMonth: event.WeekOfMonth,
 		Attendees:   toListingEventAttendees(attendees),
-		Repeat:      toListingEventRepeat(event.Repeat),
 		CreatedAt:   event.CreatedAt,
 		UpdatedAt:   event.UpdatedAt,
 	}, nil
@@ -205,7 +200,7 @@ func (s *Storage) withTx(ctx context.Context, options pgx.TxOptions, f func(q Qu
 }
 
 func (s *Storage) ListUsersEvents(ctx context.Context, userID int, from, to time.Time) ([]listing.Event, error) {
-	var events []FullEvent
+	var events []Event
 	var attendees []FullEventAttendee
 
 	err := s.withTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly}, func(q Queries) error {
@@ -229,7 +224,7 @@ func (s *Storage) ListUsersEvents(ctx context.Context, userID int, from, to time
 	return toListingEvents(events, attendees), nil
 }
 
-func pluckEventIDs(events []FullEvent) []int {
+func pluckEventIDs(events []Event) []int {
 	ids := make([]int, 0, len(events))
 	for _, event := range events {
 		ids = append(ids, event.ID)

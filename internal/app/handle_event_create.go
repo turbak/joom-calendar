@@ -6,7 +6,6 @@ import (
 	"github.com/turbak/joom-calendar/internal/creating"
 	httputil "github.com/turbak/joom-calendar/internal/pkg/http"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -21,10 +20,10 @@ type CreateEventRequest struct {
 }
 
 type CreateEventRequestRepeat struct {
-	DayOfWeek   string `json:"day_of_week"`
-	DayOfMonth  string `json:"day_of_month"`
-	MonthOfYear string `json:"month_of_year"`
-	WeekOfMonth string `json:"week_of_month"`
+	DaysOfWeek  []int `json:"days_of_week"`
+	DayOfMonth  int   `json:"day_of_month"`
+	MonthOfYear int   `json:"month_of_year"`
+	WeekOfMonth int   `json:"week_of_month"`
 }
 
 type CreateEventResponse struct {
@@ -68,7 +67,7 @@ func toAddingEventRepeat(repeat *CreateEventRequestRepeat) *creating.EventRepeat
 	}
 
 	return &creating.EventRepeat{
-		DayOfWeek:   repeat.DayOfWeek,
+		DaysOfWeek:  repeat.DaysOfWeek,
 		DayOfMonth:  repeat.DayOfMonth,
 		MonthOfYear: repeat.MonthOfYear,
 		WeekOfMonth: repeat.WeekOfMonth,
@@ -99,45 +98,38 @@ func validateCreateEventRequestRepeat(repeat *CreateEventRequestRepeat) error {
 		return nil
 	}
 
-	if repeat.MonthOfYear != "" && repeat.MonthOfYear != "*" {
-		monthOfYear, err := strconv.ParseInt(repeat.MonthOfYear, 10, 64)
-		if err != nil {
-			return CodableError{Err: errors.New("month_of_year must be a number or *"), StatusCode: http.StatusBadRequest}
-		}
-		if monthOfYear < 1 || monthOfYear > 12 {
+	if repeat.MonthOfYear != 0 {
+		if repeat.MonthOfYear < 1 || repeat.MonthOfYear > 12 {
 			return CodableError{Err: errors.New("month_of_year must be between 1 and 12"), StatusCode: http.StatusBadRequest}
 		}
 	}
 
-	if repeat.WeekOfMonth != "" && repeat.WeekOfMonth != "first" && repeat.WeekOfMonth != "second" && repeat.WeekOfMonth != "third" && repeat.WeekOfMonth != "fourth" && repeat.WeekOfMonth != "last" {
-		return CodableError{Err: errors.New("week_of_month must be one of first, second, third, fourth, last"), StatusCode: http.StatusBadRequest}
+	if repeat.WeekOfMonth != 0 &&
+		repeat.WeekOfMonth != 1 &&
+		repeat.WeekOfMonth != 2 &&
+		repeat.WeekOfMonth != 3 &&
+		repeat.WeekOfMonth != 4 &&
+		repeat.WeekOfMonth != -1 {
+		return CodableError{Err: errors.New("week_of_month must be in [1, 2, 3, 4, -1]"), StatusCode: http.StatusBadRequest}
 	}
 
-	if repeat.DayOfMonth != "" && repeat.DayOfMonth != "*" {
-		dayOfMonth, err := strconv.ParseInt(repeat.DayOfMonth, 10, 64)
-		if err != nil {
-			return CodableError{Err: errors.New("day_of_month must be a number or *"), StatusCode: http.StatusBadRequest}
-		}
-		if dayOfMonth < 1 || dayOfMonth > 31 {
+	if repeat.DayOfMonth != 0 {
+		if repeat.DayOfMonth < 1 || repeat.DayOfMonth > 31 {
 			return CodableError{Err: errors.New("day_of_month must be between 1 and 31"), StatusCode: http.StatusBadRequest}
 		}
 	}
 
-	if repeat.DayOfWeek != "" && repeat.DayOfWeek != "*" {
-		dayOfWeek, err := strconv.ParseInt(repeat.DayOfWeek, 10, 64)
-		if err != nil {
-			return CodableError{Err: errors.New("day_of_week must be a number or *"), StatusCode: http.StatusBadRequest}
-		}
-		if dayOfWeek < 1 || dayOfWeek > 7 {
-			return CodableError{Err: errors.New("day_of_week must be between 1 and 7"), StatusCode: http.StatusBadRequest}
+	for _, day := range repeat.DaysOfWeek {
+		if day < 0 || day > 6 {
+			return CodableError{Err: errors.New("days_of_week must be between 0 and 6"), StatusCode: http.StatusBadRequest}
 		}
 	}
 
-	if repeat.DayOfWeek != "" && repeat.DayOfMonth != "" {
+	if len(repeat.DaysOfWeek) != 0 && repeat.DayOfMonth != 0 {
 		return CodableError{Err: errors.New("day_of_week and day_of_month cannot be both set"), StatusCode: http.StatusBadRequest}
 	}
 
-	if repeat.DayOfMonth != "" && repeat.WeekOfMonth != "" {
+	if repeat.DayOfMonth != 0 && repeat.WeekOfMonth != 0 {
 		return CodableError{Err: errors.New("day_of_month and week_of_month cannot be both set"), StatusCode: http.StatusBadRequest}
 	}
 

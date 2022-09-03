@@ -14,6 +14,11 @@ CREATE TABLE events (
     title text NOT NULL,
     description text NOT NULL,
     duration integer NOT NULL,
+    start_date timestamp NOT NULL,
+    days_of_week INTEGER ARRAY,
+    day_of_month INTEGER NOT NULL,
+    month_of_year INTEGER NOT NULL,
+    week_of_month INTEGER NOT NULL,
     created_at timestamp NOT NULL DEFAULT now(),
     updated_at timestamp NOT NULL DEFAULT now()
 );
@@ -36,24 +41,12 @@ CREATE TABLE event_invites (
     created_at timestamp NOT NULL DEFAULT now(),
     updated_at timestamp NOT NULL DEFAULT now()
 );
-
-CREATE TABLE event_repeats (
-    id serial PRIMARY KEY,
-    event_id integer NOT NULL,
-    repeat_start_date timestamp NOT NULL,
-    day_of_week TEXT NOT NULL,
-    day_of_month TEXT NOT NULL,
-    month_of_year TEXT NOT NULL,
-    week_of_month TEXT NOT NULL,
-    created_at timestamp NOT NULL DEFAULT now(),
-    updated_at timestamp NOT NULL DEFAULT now()
-);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE event_repeats;
 DROP TABLE event_attendees;
 DROP TABLE events;
 DROP TABLE users;
+DROP TABLE event_invites;
 -- +goose StatementEnd

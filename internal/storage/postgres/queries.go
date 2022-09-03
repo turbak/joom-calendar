@@ -49,13 +49,29 @@ type createEventParams struct {
 	Title       string
 	Description string
 	Duration    int
+	StartDate   time.Time
+	DaysOfWeek  []int
+	DayOfMonth  int
+	MonthOfYear int
+	WeekOfMonth int
 }
 
 func (q Queries) CreateEvent(ctx context.Context, params createEventParams) (int, error) {
-	row := q.querier.QueryRow(ctx, `INSERT INTO events 
-    			(title, description, duration) 
-				VALUES ($1, $2, $3) RETURNING id`,
-		params.Title, params.Description, params.Duration)
+	const query = `INSERT INTO events 
+    			(title, description, duration, start_date, days_of_week, day_of_month, month_of_year, week_of_month) 
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
+	row := q.querier.QueryRow(
+		ctx,
+		query,
+		params.Title,
+		params.Description,
+		params.Duration,
+		params.StartDate,
+		params.DaysOfWeek,
+		params.DayOfMonth,
+		params.MonthOfYear,
+		params.WeekOfMonth,
+	)
 
 	var ID int
 	if err := row.Scan(&ID); err != nil {
@@ -89,37 +105,6 @@ func (q Queries) BatchCreateEventAttendees(ctx context.Context, params []createE
 	return err
 }
 
-type createEventRepeatParams struct {
-	EventID     int
-	StartDate   time.Time
-	DayOfWeek   string
-	DayOfMonth  string
-	MonthOfYear string
-	WeekOfMonth string
-}
-
-func (q Queries) CreateEventRepeat(ctx context.Context, params createEventRepeatParams) error {
-	const query = `INSERT INTO event_repeats
-(event_id, repeat_start_date, day_of_week, day_of_month, month_of_year, week_of_month)
-VALUES ($1, $2, $3, $4, $5, $6)`
-
-	_, err := q.querier.Exec(
-		ctx,
-		query,
-		params.EventID,
-		params.StartDate,
-		params.DayOfWeek,
-		params.DayOfMonth,
-		params.MonthOfYear,
-		params.WeekOfMonth,
-	)
-	if err != nil {
-		return err
-	}
-
-	return err
-}
-
 func (q Queries) BatchGetUsersByIDs(ctx context.Context, IDs []int) ([]User, error) {
 	query, args, err := pgQb.
 		Select("id", "name", "email", "created_at", "updated_at").
@@ -138,7 +123,13 @@ func (q Queries) BatchGetUsersByIDs(ctx context.Context, IDs []int) ([]User, err
 	var users []User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		if err := rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Email,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		users = append(users, user)
@@ -147,7 +138,7 @@ func (q Queries) BatchGetUsersByIDs(ctx context.Context, IDs []int) ([]User, err
 	return users, nil
 }
 
-func (q Queries) GetFullEventByID(ctx context.Context, ID int) (*FullEvent, error) {
+func (q Queries) GetEventByID(ctx context.Context, ID int) (*Event, error) {
 	query, args, err := pgQb.
 		Select(
 			"e.id",
@@ -156,14 +147,13 @@ func (q Queries) GetFullEventByID(ctx context.Context, ID int) (*FullEvent, erro
 			"e.duration",
 			"e.created_at",
 			"e.updated_at",
-			"er.repeat_start_date",
-			"er.day_of_week",
-			"er.day_of_month",
-			"er.month_of_year",
-			"er.week_of_month",
+			"e.start_date",
+			"e.days_of_week",
+			"e.day_of_month",
+			"e.month_of_year",
+			"e.week_of_month",
 		).
 		From("events e").
-		InnerJoin("event_repeats er ON er.event_id = e.id").
 		Where(squirrel.Eq{"e.id": ID}).
 		ToSql()
 	if err != nil {
@@ -175,7 +165,7 @@ func (q Queries) GetFullEventByID(ctx context.Context, ID int) (*FullEvent, erro
 		return nil, err
 	}
 
-	var event FullEvent
+	var event Event
 	for rows.Next() {
 		if err := rows.Scan(
 			&event.ID,
@@ -184,11 +174,11 @@ func (q Queries) GetFullEventByID(ctx context.Context, ID int) (*FullEvent, erro
 			&event.Duration,
 			&event.CreatedAt,
 			&event.UpdatedAt,
-			&event.Repeat.StartDate,
-			&event.Repeat.DayOfWeek,
-			&event.Repeat.DayOfMonth,
-			&event.Repeat.MonthOfYear,
-			&event.Repeat.WeekOfMonth,
+			&event.StartDate,
+			&event.DaysOfWeek,
+			&event.DayOfMonth,
+			&event.MonthOfYear,
+			&event.WeekOfMonth,
 		); err != nil {
 			return nil, err
 		}
@@ -313,24 +303,24 @@ func (q Queries) BatchGetFullEventAttendees(ctx context.Context, eventIDs ...int
 	return attendees, nil
 }
 
-func (q Queries) ListUsersEvents(ctx context.Context, ID int, from time.Time, to time.Time) ([]FullEvent, error) {
+func (q Queries) ListUsersEvents(ctx context.Context, ID int, from time.Time, to time.Time) ([]Event, error) {
 	const query = `SELECT e.id,
-       e.title,
-       e.description,
-       e.duration,
-       e.created_at,
-       e.updated_at,
-       er.repeat_start_date,
-       er.day_of_week,
-       er.day_of_month,
-       er.month_of_year,
-       er.week_of_month
-FROM events e
-         INNER JOIN event_repeats er on e.id = er.event_id
-WHERE er.repeat_start_date::date BETWEEN $1::date AND $2::date
-OR (er.week_of_month >= extract(week from $1::date) AND er.week_of_month <= extract(week from $2::date))
-OR (er.day_of_week >= extract(dow from $1::date) AND er.day_of_week <= extract(dow from $2::date))
-OR (er.day_of_month >= extract(day from $1::date) AND er.day_of_month <= extract(day from $2::date))
-OR (er.month_of_year >= extract(month from $1::date) AND er.month_of_year <= extract(month from $2::date))
-`
+		       e.title,
+		       e.description,
+		       e.duration,
+		       e.created_at,
+		       e.updated_at,
+		       e.start_date,
+		       e.days_of_week,
+		       e.day_of_month,
+		       e.month_of_year,
+		       e.week_of_month
+		FROM events e
+		WHERE e.start_date::date BETWEEN $1::date AND $2::date
+		OR (e.week_of_month >= extract(week from $1::date) AND e.week_of_month <= extract(week from $2::date))
+		OR (e.days_of_week >= extract(dow from $1::date) AND e.days_of_week <= extract(dow from $2::date))
+		OR (e.day_of_month >= extract(day from $1::date) AND e.day_of_month <= extract(day from $2::date))
+		OR (e.month_of_year >= extract(month from $1::date) AND e.month_of_year <= extract(month from $2::date))
+		`
+	return nil, nil
 }

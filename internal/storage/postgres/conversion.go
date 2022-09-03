@@ -23,17 +23,7 @@ func toListingEventAttendees(attendees []FullEventAttendee) []listing.EventAtten
 	return res
 }
 
-func toListingEventRepeat(repeat EventRepeat) listing.EventRepeat {
-	return listing.EventRepeat{
-		StartDate:   repeat.StartDate,
-		DayOfWeek:   repeat.DayOfWeek,
-		DayOfMonth:  repeat.DayOfMonth,
-		MonthOfYear: repeat.MonthOfYear,
-		WeekOfMonth: repeat.WeekOfMonth,
-	}
-}
-
-func toListingEvents(events []FullEvent, attendees []FullEventAttendee) []listing.Event {
+func toListingEvents(events []Event, attendees []FullEventAttendee) []listing.Event {
 	listingEvents := make([]listing.Event, 0, len(events))
 	for _, event := range events {
 		listingEvents = append(listingEvents, listing.Event{
@@ -41,8 +31,12 @@ func toListingEvents(events []FullEvent, attendees []FullEventAttendee) []listin
 			Title:       event.Title,
 			Description: event.Description,
 			Duration:    event.Duration,
+			StartDate:   event.StartDate,
+			DaysOfWeek:  event.DaysOfWeek,
+			DayOfMonth:  event.DayOfMonth,
+			MonthOfYear: event.MonthOfYear,
+			WeekOfMonth: event.WeekOfMonth,
 			Attendees:   toListingEventAttendees(attendees),
-			Repeat:      toListingEventRepeat(event.Repeat),
 			CreatedAt:   event.CreatedAt,
 			UpdatedAt:   event.UpdatedAt,
 		})

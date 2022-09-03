@@ -7,8 +7,12 @@ type Event struct {
 	Title       string
 	Description string
 	Duration    int
+	StartDate   time.Time
+	DaysOfWeek  []int
+	DayOfMonth  int
+	MonthOfYear int
+	WeekOfMonth int
 	Attendees   []EventAttendee
-	Repeat      EventRepeat
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -19,14 +23,6 @@ type EventAttendee struct {
 	User      User
 	CreatedAt time.Time
 	UpdatedAt time.Time
-}
-
-type EventRepeat struct {
-	StartDate   time.Time
-	DayOfWeek   string
-	DayOfMonth  string
-	MonthOfYear string
-	WeekOfMonth string
 }
 
 type EventAttendeeStatus string
