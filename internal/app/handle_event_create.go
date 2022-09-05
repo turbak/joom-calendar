@@ -6,30 +6,7 @@ import (
 	"github.com/turbak/joom-calendar/internal/creating"
 	httputil "github.com/turbak/joom-calendar/internal/pkg/http"
 	"net/http"
-	"time"
 )
-
-type CreateEventRequest struct {
-	Title           string                    `json:"title"`
-	Desc            string                    `json:"desc"`
-	StartDate       time.Time                 `json:"start_date"`
-	InvitedUserIDs  []int                     `json:"invited_user_ids"`
-	OrganizerUserID int                       `json:"organizer_user_id"`
-	Duration        int                       `json:"duration"`
-	Repeat          *CreateEventRequestRepeat `json:"repeat"`
-}
-
-type CreateEventRequestRepeat struct {
-	Frequency   string `json:"frequency"`
-	DaysOfWeek  []int  `json:"days_of_week"`
-	DayOfMonth  int    `json:"day_of_month"`
-	MonthOfYear int    `json:"month_of_year"`
-	WeekOfMonth int    `json:"week_of_month"`
-}
-
-type CreateEventResponse struct {
-	ID int `json:"id"`
-}
 
 func (a *App) handleCreateEvent() httputil.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -50,7 +27,7 @@ func (a *App) handleCreateEvent() httputil.HandlerFunc {
 			Duration:        args.Duration,
 			OrganizerUserID: args.OrganizerUserID,
 			InvitedUserIDs:  args.InvitedUserIDs,
-			Repeat:          toAddingEventRepeat(args.Repeat, args.StartDate),
+			Repeat:          toCreatingEventRepeat(args.Repeat, args.StartDate),
 		}
 
 		createdID, err := a.creator.CreateEvent(req.Context(), event)
@@ -59,21 +36,6 @@ func (a *App) handleCreateEvent() httputil.HandlerFunc {
 		}
 
 		return CreateEventResponse{ID: createdID}, nil
-	}
-}
-
-func toAddingEventRepeat(repeat *CreateEventRequestRepeat, startDate time.Time) *creating.EventRepeat {
-	if repeat == nil {
-		return nil
-	}
-
-	return &creating.EventRepeat{
-		Frequency:   creating.EventRepeatFrequency(repeat.Frequency),
-		StartDate:   startDate,
-		DaysOfWeek:  repeat.DaysOfWeek,
-		DayOfMonth:  repeat.DayOfMonth,
-		MonthOfYear: repeat.MonthOfYear,
-		WeekOfMonth: repeat.WeekOfMonth,
 	}
 }
 

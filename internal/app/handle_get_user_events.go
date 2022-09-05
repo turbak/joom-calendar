@@ -38,11 +38,3 @@ func (a *App) handleGetUserEvents() httputil.HandlerFunc {
 		return toEvents(events), nil
 	}
 }
-
-func toEvents(events []listing.Event) []Event {
-	var es []Event
-	for _, e := range events {
-		es = append(es, toEvent(&e))
-	}
-	return es
-}
