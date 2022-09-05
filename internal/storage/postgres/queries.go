@@ -352,3 +352,54 @@ func (q Queries) ListUsersEvents(ctx context.Context, from, to time.Time, usersI
 
 	return events, nil
 }
+
+func (q Queries) BatchGetEventsByUserIDs(ctx context.Context, userIDs []int) ([]Event, error) {
+	query, args, err := pgQb.
+		Select(
+			"e.id",
+			"e.title",
+			"e.description",
+			"e.duration",
+			"e.created_at",
+			"e.updated_at",
+			"e.start_date",
+			"e.rrule",
+			"e.is_all_day",
+			"e.is_repeated",
+		).
+		From("events e").
+		InnerJoin("event_attendees ea ON e.id = ea.event_id").
+		Where(squirrel.Eq{"ea.user_id": userIDs}).
+		ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := q.querier.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var events []Event
+
+	for rows.Next() {
+		var event Event
+		if err := rows.Scan(
+			&event.ID,
+			&event.Title,
+			&event.Description,
+			&event.Duration,
+			&event.CreatedAt,
+			&event.UpdatedAt,
+			&event.StartDate,
+			&event.Rrule,
+			&event.IsAllDay,
+			&event.IsRepeated,
+		); err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+
+	return events, nil
+}

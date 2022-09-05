@@ -211,6 +211,31 @@ func (s *Storage) ListUsersEvents(ctx context.Context, userID int, from, to time
 	return toListingEvents(events, attendees), nil
 }
 
+func (s *Storage) BatchGetEventsByUserIDs(ctx context.Context, userIDs []int) ([]listing.Event, error) {
+	var events []Event
+	var attendees []FullEventAttendee
+
+	err := s.withTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly}, func(q Queries) error {
+		var err error
+		events, err = q.BatchGetEventsByUserIDs(ctx, userIDs)
+		if err != nil {
+			return err
+		}
+
+		attendees, err = q.BatchGetFullEventAttendees(ctx, pluckEventIDs(events)...)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return toListingEvents(events, attendees), nil
+}
+
 func pluckEventIDs(events []Event) []int {
 	ids := make([]int, 0, len(events))
 	for _, event := range events {

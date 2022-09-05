@@ -20,6 +20,7 @@ type Creator interface {
 type Lister interface {
 	GetEventByID(ctx context.Context, eventID int) (*listing.Event, error)
 	ListUsersEvents(ctx context.Context, userID int, from, to time.Time) ([]listing.Event, error)
+	GetNearestEmptyTimeInterval(ctx context.Context, userIDs []int, minDuration time.Duration) (time.Time, time.Time, error)
 }
 
 type Inviter interface {

@@ -1,7 +1,9 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"github.com/turbak/joom-calendar/internal/pkg/logger"
 	"net/http"
 )
@@ -21,6 +23,11 @@ func Handler(f HandlerFunc) func(w http.ResponseWriter, r *http.Request) {
 			if err, ok := err.(codableError); ok {
 				code = err.Code()
 			}
+
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				code = http.StatusRequestTimeout
+			}
+
 			http.Error(w, err.Error(), code)
 			logger.Errorf("error while performing %s %s: %s", r.Method, r.RequestURI, err.Error())
 			return
