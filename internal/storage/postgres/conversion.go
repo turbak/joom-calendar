@@ -50,6 +50,8 @@ func toListingEvent(event Event, eventAttendees []listing.EventAttendee) listing
 		Description: event.Description,
 		Duration:    event.Duration,
 		StartDate:   event.StartDate,
+		IsAllDay:    event.IsAllDay,
+		IsRepeated:  event.IsRepeated,
 		Rrule:       toRrule(event.Rrule),
 		Attendees:   eventAttendees,
 		CreatedAt:   event.CreatedAt,

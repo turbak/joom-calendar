@@ -22,6 +22,8 @@ CREATE TABLE events (
     updated_at timestamp NOT NULL DEFAULT now()
 );
 
+CREATE INDEX events_start_date_index ON events (start_date);
+
 CREATE TABLE event_attendees (
     event_id integer NOT NULL,
     user_id integer NOT NULL,

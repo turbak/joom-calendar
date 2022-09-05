@@ -151,7 +151,8 @@ func (q Queries) GetEventByID(ctx context.Context, ID int) (*Event, error) {
 			"e.is_repeated",
 		).
 		From("events e").
-		Where(squirrel.Eq{"e.id": ID}).
+		InnerJoin("event_attendees ea ON ea.event_id = e.id").
+		Where(squirrel.Eq{"ea.user_id": ID}).
 		ToSql()
 	if err != nil {
 		return nil, err
@@ -254,19 +255,19 @@ WHERE event_id = $1
 func (q Queries) BatchGetFullEventAttendees(ctx context.Context, eventIDs ...int) ([]FullEventAttendee, error) {
 	query, args, err := pgQb.
 		Select(
-			"event_attendees.event_id",
-			"event_attendees.status",
-			"event_attendees.created_at",
-			"event_attendees.updated_at",
-			"users.id",
-			"users.name",
-			"users.email",
-			"users.created_at",
-			"users.updated_at",
+			"ea.event_id",
+			"ea.status",
+			"ea.created_at",
+			"ea.updated_at",
+			"u.id",
+			"u.name",
+			"u.email",
+			"u.created_at",
+			"u.updated_at",
 		).
-		From("event_attendees").
-		Join("users ON event_attendees.user_id = users.id").
-		Where(squirrel.Eq{"event_attendees.event_id": eventIDs}).
+		From("event_attendees ea").
+		Join("users u ON ea.user_id = u.id").
+		Where(squirrel.Eq{"ea.event_id": eventIDs}).
 		ToSql()
 	if err != nil {
 		return nil, err
@@ -313,8 +314,9 @@ func (q Queries) ListUsersEvents(ctx context.Context, from, to time.Time, usersI
 			"e.is_all_day",
 			"e.is_repeated",
 		).
-		From("events AS e").
-		Where(squirrel.Eq{"e.user_id": usersIDs}).
+		From("events e").
+		InnerJoin("event_attendees ea ON e.id = ea.event_id").
+		Where(squirrel.Eq{"ea.user_id": usersIDs}).
 		Where(squirrel.LtOrEq{"e.start_date": to}).
 		Where(squirrel.GtOrEq{"e.start_date": from}).
 		ToSql()

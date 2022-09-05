@@ -9,6 +9,7 @@ import (
 	"github.com/turbak/joom-calendar/internal/pkg/http/mw"
 	"github.com/turbak/joom-calendar/internal/pkg/logger"
 	"net/http"
+	"time"
 )
 
 type Creator interface {
@@ -18,6 +19,7 @@ type Creator interface {
 
 type Lister interface {
 	GetEventByID(ctx context.Context, eventID int) (*listing.Event, error)
+	ListUsersEvents(ctx context.Context, userID int, from, to time.Time) ([]listing.Event, error)
 }
 
 type Inviter interface {
@@ -53,6 +55,8 @@ func (a *App) Routes() chi.Router {
 
 	a.publicRouter.Post("/event-invites/{invite_id}:accept", httputil.Handler(a.handleAcceptInvite()))
 	a.publicRouter.Post("/event-invites/{invite_id}:decline", httputil.Handler(a.handleDeclineInvite()))
+
+	a.publicRouter.Get("/users/{user_id}/events", httputil.Handler(a.handleGetUserEvents()))
 
 	return a.publicRouter
 }

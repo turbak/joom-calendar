@@ -46,5 +46,10 @@ func (s *Service) ListUsersEvents(ctx context.Context, userID int, from, to time
 		}
 	}
 
-	return events[:j], nil
+	res := events[:j]
+	if len(res) == 0 {
+		return nil, ErrEventNotFound
+	}
+
+	return res, nil
 }

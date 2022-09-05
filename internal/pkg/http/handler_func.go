@@ -26,12 +26,18 @@ func Handler(f HandlerFunc) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if resp == nil {
-			w.Write([]byte("{}"))
-			return
+		w.Header().Add("Content-Type", "application/json")
+
+		switch resp.(type) {
+		case nil:
+			w.WriteHeader(http.StatusNoContent)
+		case []byte:
+			_, err = w.Write(resp.([]byte))
+		default:
+			err = json.NewEncoder(w).Encode(resp)
 		}
 
-		if err = json.NewEncoder(w).Encode(resp); err != nil {
+		if err != nil {
 			logger.Error("failed to encode response: %v", err)
 		}
 	}
