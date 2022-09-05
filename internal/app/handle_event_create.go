@@ -20,10 +20,11 @@ type CreateEventRequest struct {
 }
 
 type CreateEventRequestRepeat struct {
-	DaysOfWeek  []int `json:"days_of_week"`
-	DayOfMonth  int   `json:"day_of_month"`
-	MonthOfYear int   `json:"month_of_year"`
-	WeekOfMonth int   `json:"week_of_month"`
+	Frequency   string `json:"frequency"`
+	DaysOfWeek  []int  `json:"days_of_week"`
+	DayOfMonth  int    `json:"day_of_month"`
+	MonthOfYear int    `json:"month_of_year"`
+	WeekOfMonth int    `json:"week_of_month"`
 }
 
 type CreateEventResponse struct {
@@ -49,7 +50,7 @@ func (a *App) handleCreateEvent() httputil.HandlerFunc {
 			Duration:        args.Duration,
 			OrganizerUserID: args.OrganizerUserID,
 			InvitedUserIDs:  args.InvitedUserIDs,
-			Repeat:          toAddingEventRepeat(args.Repeat),
+			Repeat:          toAddingEventRepeat(args.Repeat, args.StartDate),
 		}
 
 		createdID, err := a.creator.CreateEvent(req.Context(), event)
@@ -61,12 +62,14 @@ func (a *App) handleCreateEvent() httputil.HandlerFunc {
 	}
 }
 
-func toAddingEventRepeat(repeat *CreateEventRequestRepeat) *creating.EventRepeat {
+func toAddingEventRepeat(repeat *CreateEventRequestRepeat, startDate time.Time) *creating.EventRepeat {
 	if repeat == nil {
 		return nil
 	}
 
 	return &creating.EventRepeat{
+		Frequency:   creating.EventRepeatFrequency(repeat.Frequency),
+		StartDate:   startDate,
 		DaysOfWeek:  repeat.DaysOfWeek,
 		DayOfMonth:  repeat.DayOfMonth,
 		MonthOfYear: repeat.MonthOfYear,
@@ -131,6 +134,16 @@ func validateCreateEventRequestRepeat(repeat *CreateEventRequestRepeat) error {
 
 	if repeat.DayOfMonth != 0 && repeat.WeekOfMonth != 0 {
 		return CodableError{Err: errors.New("day_of_month and week_of_month cannot be both set"), StatusCode: http.StatusBadRequest}
+	}
+
+	if repeat.Frequency == "" {
+		return CodableError{Err: errors.New("frequency is required"), StatusCode: http.StatusBadRequest}
+	}
+
+	if repeat.Frequency != "daily" &&
+		repeat.Frequency != "weekly" &&
+		repeat.Frequency != "monthly" {
+		return CodableError{Err: errors.New("frequency must be in [daily, weekly, monthly]"), StatusCode: http.StatusBadRequest}
 	}
 
 	return nil

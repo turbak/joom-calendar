@@ -25,6 +25,7 @@ func Test_validateCreateEventRequest(t *testing.T) {
 					OrganizerUserID: 1,
 					Duration:        1,
 					Repeat: &CreateEventRequestRepeat{
+						Frequency:   "daily",
 						DayOfMonth:  1,
 						MonthOfYear: 1,
 					},
@@ -56,6 +57,7 @@ func Test_validateCreateEventRequest(t *testing.T) {
 					OrganizerUserID: 1,
 					Duration:        1,
 					Repeat: &CreateEventRequestRepeat{
+						Frequency:   "daily",
 						DaysOfWeek:  []int{1},
 						DayOfMonth:  1,
 						MonthOfYear: 1,

@@ -3,6 +3,7 @@ module github.com/turbak/joom-calendar
 go 1.19
 
 require (
+	github.com/JulienBreux/rrule v0.0.0-20170222171609-0e86efa9e1c1 // indirect
 	github.com/Masterminds/squirrel v1.5.3 // indirect
 	github.com/go-chi/chi v1.5.4 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
@@ -16,6 +17,7 @@ require (
 	github.com/jackc/puddle v1.3.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
+	github.com/teambition/rrule-go v1.8.0 // indirect
 	github.com/xlab/closer v1.0.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect

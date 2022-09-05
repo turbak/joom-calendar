@@ -35,5 +35,16 @@ func (s *Service) ListUsersEvents(ctx context.Context, userID int, from, to time
 		return nil, err
 	}
 
-	return events, nil
+	j := 0
+	for i := range events {
+		if events[i].IsRepeated {
+			isEventInPeriod := len(events[i].Rrule.Between(from, to, true)) > 0
+			if isEventInPeriod {
+				events[j] = events[i]
+				j++
+			}
+		}
+	}
+
+	return events[:j], nil
 }

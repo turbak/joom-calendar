@@ -1,6 +1,9 @@
 package listing
 
-import "time"
+import (
+	"github.com/teambition/rrule-go"
+	"time"
+)
 
 type Event struct {
 	ID          int
@@ -8,11 +11,10 @@ type Event struct {
 	Description string
 	Duration    int
 	StartDate   time.Time
-	DaysOfWeek  []int
-	DayOfMonth  int
-	MonthOfYear int
-	WeekOfMonth int
+	Rrule       *rrule.RRule
 	Attendees   []EventAttendee
+	IsAllDay    bool
+	IsRepeated  bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

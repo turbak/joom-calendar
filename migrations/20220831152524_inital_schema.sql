@@ -15,10 +15,9 @@ CREATE TABLE events (
     description text NOT NULL,
     duration integer NOT NULL,
     start_date timestamp NOT NULL,
-    days_of_week INTEGER ARRAY,
-    day_of_month INTEGER NOT NULL,
-    month_of_year INTEGER NOT NULL,
-    week_of_month INTEGER NOT NULL,
+    is_all_day boolean NOT NULL,
+    is_repeated boolean NOT NULL,
+    rrule text,
     created_at timestamp NOT NULL DEFAULT now(),
     updated_at timestamp NOT NULL DEFAULT now()
 );

@@ -10,10 +10,9 @@ type Event struct {
 	Description string
 	Duration    int
 	StartDate   time.Time
-	DaysOfWeek  []int
-	DayOfMonth  int
-	MonthOfYear int
-	WeekOfMonth int
+	Rrule       string
+	IsAllDay    bool
+	IsRepeated  bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

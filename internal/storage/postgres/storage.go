@@ -3,13 +3,12 @@ package postgres
 import (
 	"context"
 	"errors"
-	"github.com/turbak/joom-calendar/internal/inviting"
-	"time"
-
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/turbak/joom-calendar/internal/creating"
+	"github.com/turbak/joom-calendar/internal/inviting"
 	"github.com/turbak/joom-calendar/internal/listing"
+	"time"
 )
 
 type Storage struct {
@@ -74,22 +73,22 @@ func (s *Storage) BatchGetUserByIDs(ctx context.Context, IDs []int) ([]listing.U
 
 func (s *Storage) CreateEvent(ctx context.Context, event creating.Event) (int, error) {
 	var createdID int
-	var err error
 
-	err = s.withTx(ctx, pgx.TxOptions{}, func(q Queries) error {
-		createdID, err = q.CreateEvent(ctx, createEventParams{
+	err := s.withTx(ctx, pgx.TxOptions{}, func(q Queries) error {
+		insertedID, err := q.CreateEvent(ctx, createEventParams{
 			Title:       event.Title,
 			Description: event.Description,
 			Duration:    event.Duration,
 			StartDate:   event.StartDate,
-			DaysOfWeek:  event.Repeat.DaysOfWeek,
-			DayOfMonth:  event.Repeat.DayOfMonth,
-			MonthOfYear: event.Repeat.MonthOfYear,
-			WeekOfMonth: event.Repeat.WeekOfMonth,
+			IsAllDay:    event.IsAllDay,
+			IsRepeated:  event.Repeat == nil,
+			Rrule:       event.Repeat.ToRrule(),
 		})
 		if err != nil {
 			return err
 		}
+
+		createdID = insertedID
 
 		eventAttendees := make([]createEventAttendeeParams, 0, len(event.InvitedUserIDs)+1)
 		eventInvites := make([]createEventInviteParams, 0, len(event.InvitedUserIDs))
@@ -150,20 +149,8 @@ func (s *Storage) GetEventByID(ctx context.Context, ID int) (*listing.Event, err
 		return nil, err
 	}
 
-	return &listing.Event{
-		ID:          event.ID,
-		Title:       event.Title,
-		Description: event.Description,
-		Duration:    event.Duration,
-		StartDate:   event.StartDate,
-		DaysOfWeek:  event.DaysOfWeek,
-		DayOfMonth:  event.DayOfMonth,
-		MonthOfYear: event.MonthOfYear,
-		WeekOfMonth: event.WeekOfMonth,
-		Attendees:   toListingEventAttendees(attendees),
-		CreatedAt:   event.CreatedAt,
-		UpdatedAt:   event.UpdatedAt,
-	}, nil
+	res := toListingEvent(event, toListingEventAttendees(attendees))
+	return &res, nil
 }
 
 func (s *Storage) UpdateEventInviteStatus(ctx context.Context, inviteID int, status string) error {
@@ -205,7 +192,7 @@ func (s *Storage) ListUsersEvents(ctx context.Context, userID int, from, to time
 
 	err := s.withTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly}, func(q Queries) error {
 		var err error
-		events, err = q.ListUsersEvents(ctx, userID, from, to)
+		events, err = q.ListUsersEvents(ctx, from, to, userID)
 		if err != nil {
 			return err
 		}
