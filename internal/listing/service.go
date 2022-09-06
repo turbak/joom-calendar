@@ -93,11 +93,30 @@ func findMinInterval(ctx context.Context, events []Event, minDuration time.Durat
 		}
 
 		if between := events[i].Rrule.Between(min, minPlusDuration, true); len(between) > 0 {
-			min = between[len(between)-1]
+			//finding the maximum meeting end time for current constraints
+			min = findNextMaxMeetingTime(events[i:], min, minPlusDuration)
 			minPlusDuration = min.Add(minDuration)
 			i = -1
 		}
 	}
 
 	return min, nil
+}
+
+// findNextMaxMeetingTime finds next maximum meting end time
+func findNextMaxMeetingTime(events []Event, min, minPlusDuration time.Time) time.Time {
+	var max time.Time
+	var duration int
+
+	for _, event := range events {
+		if between := event.Rrule.Between(min, minPlusDuration, true); len(between) > 0 {
+			if nextInterval := between[len(between)-1]; nextInterval.After(max) {
+				max = nextInterval
+				duration = event.Duration
+			}
+		}
+	}
+
+	//Adding event duration to min time to find next interval
+	return max.Add(time.Duration(duration * int(time.Second)))
 }

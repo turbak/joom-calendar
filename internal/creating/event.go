@@ -11,8 +11,9 @@ type Event struct {
 	StartDate       time.Time
 	OrganizerUserID int
 	InvitedUserIDs  []int
-	Duration        int
-	Repeat          *EventRepeat
+	// Duration in seconds
+	Duration int
+	Repeat   *EventRepeat
 }
 
 type EventRepeat struct {

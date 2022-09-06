@@ -30,13 +30,14 @@ type User struct {
 }
 
 type CreateEventRequest struct {
-	Title           string                    `json:"title"`
-	Desc            string                    `json:"desc"`
-	StartDate       time.Time                 `json:"start_date"`
-	InvitedUserIDs  []int                     `json:"invited_user_ids"`
-	OrganizerUserID int                       `json:"organizer_user_id"`
-	Duration        int                       `json:"duration"`
-	Repeat          *CreateEventRequestRepeat `json:"repeat"`
+	Title           string    `json:"title"`
+	Desc            string    `json:"desc"`
+	StartDate       time.Time `json:"start_date"`
+	InvitedUserIDs  []int     `json:"invited_user_ids"`
+	OrganizerUserID int       `json:"organizer_user_id"`
+	// Duration in seconds
+	Duration int                       `json:"duration"`
+	Repeat   *CreateEventRequestRepeat `json:"repeat"`
 }
 
 type CreateEventRequestRepeat struct {

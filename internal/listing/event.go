@@ -9,14 +9,15 @@ type Event struct {
 	ID          int
 	Title       string
 	Description string
-	Duration    int
-	StartDate   time.Time
-	Rrule       *rrule.RRule
-	Attendees   []EventAttendee
-	IsAllDay    bool
-	IsRepeated  bool
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// Duration in seconds
+	Duration   int
+	StartDate  time.Time
+	Rrule      *rrule.RRule
+	Attendees  []EventAttendee
+	IsAllDay   bool
+	IsRepeated bool
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 type EventAttendee struct {
