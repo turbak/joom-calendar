@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"github.com/teambition/rrule-go"
+	"github.com/turbak/joom-calendar/internal/auth"
 	"github.com/turbak/joom-calendar/internal/listing"
 )
 
@@ -50,7 +51,6 @@ func toListingEvent(event Event, eventAttendees []listing.EventAttendee) listing
 		Description: event.Description,
 		Duration:    event.Duration,
 		StartDate:   event.StartDate,
-		IsAllDay:    event.IsAllDay,
 		IsRepeated:  event.IsRepeated,
 		Rrule:       toRrule(event.Rrule),
 		Attendees:   eventAttendees,
@@ -66,4 +66,12 @@ func toRrule(rule string) *rrule.RRule {
 
 	ret, _ := rrule.StrToRRule(rule)
 	return ret
+}
+
+func toAuthUser(user User) *auth.User {
+	return &auth.User{
+		ID:    user.ID,
+		Name:  user.Name,
+		Email: user.Email,
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/turbak/joom-calendar/internal/auth"
 	"github.com/turbak/joom-calendar/internal/creating"
 	"github.com/turbak/joom-calendar/internal/inviting"
 	"github.com/turbak/joom-calendar/internal/listing"
@@ -233,6 +234,18 @@ func (s *Storage) BatchGetEventsByUserIDs(ctx context.Context, userIDs []int) ([
 	}
 
 	return toListingEvents(events, attendees), nil
+}
+
+func (s *Storage) GetUserByEmail(ctx context.Context, email string) (*auth.User, error) {
+	user, err := Queries{querier: s.pool}.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, auth.ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	return toAuthUser(*user), nil
 }
 
 func pluckEventIDs(events []Event) []int {

@@ -28,19 +28,26 @@ type Inviter interface {
 	DeclineInvite(ctx context.Context, inviteID int) error
 }
 
+type Authenticator interface {
+	AuthenticateGithub(ctx context.Context, code string) (string, error)
+	Middleware() func(http.Handler) http.Handler
+}
+
 type App struct {
 	publicRouter chi.Router
 
-	creator Creator
-	lister  Lister
-	inviter Inviter
+	creator       Creator
+	lister        Lister
+	inviter       Inviter
+	authenticator Authenticator
 }
 
-func New(creator Creator, lister Lister, inviter Inviter) *App {
+func New(creator Creator, lister Lister, inviter Inviter, authenticator Authenticator) *App {
 	a := &App{
-		creator: creator,
-		lister:  lister,
-		inviter: inviter,
+		creator:       creator,
+		lister:        lister,
+		inviter:       inviter,
+		authenticator: authenticator,
 	}
 	return a
 }
@@ -49,16 +56,23 @@ func (a *App) Routes() chi.Router {
 	a.publicRouter = chi.NewRouter()
 	a.publicRouter.Use(mw.Recover(), mw.ResponseTimeLogging())
 
-	a.publicRouter.Post("/users", httputil.Handler(a.handleCreateUser()))
+	a.publicRouter.Group(func(r chi.Router) {
+		r.Use(a.authenticator.Middleware())
 
-	a.publicRouter.Post("/events", httputil.Handler(a.handleCreateEvent()))
-	a.publicRouter.Get("/events/{event_id}", httputil.Handler(a.handleGetEvent()))
-	a.publicRouter.Get("/events:nearest-empty-time-interval", httputil.Handler(a.handleFindNearestTimeInterval()))
+		r.Post("/users", httputil.Handler(a.handleCreateUser()))
 
-	a.publicRouter.Post("/event-invites/{invite_id}:accept", httputil.Handler(a.handleAcceptInvite()))
-	a.publicRouter.Post("/event-invites/{invite_id}:decline", httputil.Handler(a.handleDeclineInvite()))
+		r.Post("/events", httputil.Handler(a.handleCreateEvent()))
+		r.Get("/events/{event_id}", httputil.Handler(a.handleGetEvent()))
+		r.Get("/events:nearest-empty-time-interval", httputil.Handler(a.handleFindNearestTimeInterval()))
 
-	a.publicRouter.Get("/users/{user_id}/events", httputil.Handler(a.handleGetUserEvents()))
+		r.Post("/event-invites/{invite_id}:accept", httputil.Handler(a.handleAcceptInvite()))
+		r.Post("/event-invites/{invite_id}:decline", httputil.Handler(a.handleDeclineInvite()))
+
+		r.Get("/users/{user_id}/events", httputil.Handler(a.handleGetUserEvents()))
+	})
+
+	a.publicRouter.Get("/login/github", a.handleGithubLogin())
+	a.publicRouter.Get("/callbacks/github", httputil.Handler(a.handleGithubCallback()))
 
 	return a.publicRouter
 }
