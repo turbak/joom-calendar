@@ -45,6 +45,9 @@ func (s *Service) ListUsersEvents(ctx context.Context, userID int, from, to time
 				events[j] = events[i]
 				j++
 			}
+		} else {
+			events[j] = events[i]
+			j++
 		}
 	}
 
