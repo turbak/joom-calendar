@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: "joom_calendar"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgrespw"
+    volumes:
+      - data:/var/lib/postgresql/data
+  joom-calendar:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - default
+    environment:
+      PORT: 8080
+      DATABASE_URL: "postgres://postgres:postgrespw@postgres:5432/joom_calendar"
+
+volumes:
+  data:
