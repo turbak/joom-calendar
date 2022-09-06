@@ -53,6 +53,7 @@ func (a *App) Routes() chi.Router {
 
 	a.publicRouter.Post("/events", httputil.Handler(a.handleCreateEvent()))
 	a.publicRouter.Get("/events/{event_id}", httputil.Handler(a.handleGetEvent()))
+	a.publicRouter.Get("/events:nearest-empty-time-interval", httputil.Handler(a.handleFindNearestTimeInterval()))
 
 	a.publicRouter.Post("/event-invites/{invite_id}:accept", httputil.Handler(a.handleAcceptInvite()))
 	a.publicRouter.Post("/event-invites/{invite_id}:decline", httputil.Handler(a.handleDeclineInvite()))

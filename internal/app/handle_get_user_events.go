@@ -13,17 +13,17 @@ import (
 func (a *App) handleGetUserEvents() httputil.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) (interface{}, error) {
 		userID, err := strconv.Atoi(chi.URLParam(req, "user_id"))
-		if err != nil {
+		if err != nil || userID <= 0 {
 			return nil, CodableError{Err: errors.New("invalid user id"), StatusCode: http.StatusBadRequest}
 		}
 
 		from, err := time.Parse(time.RFC3339, req.URL.Query().Get("from"))
-		if err != nil {
+		if err != nil || from.IsZero() {
 			return nil, CodableError{Err: errors.New("invalid from date"), StatusCode: http.StatusBadRequest}
 		}
 
 		to, err := time.Parse(time.RFC3339, req.URL.Query().Get("to"))
-		if err != nil {
+		if err != nil || to.IsZero() {
 			return nil, CodableError{Err: errors.New("invalid to date"), StatusCode: http.StatusBadRequest}
 		}
 

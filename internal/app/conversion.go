@@ -7,6 +7,10 @@ import (
 )
 
 func toEvent(event *listing.Event) Event {
+	if event == nil {
+		return Event{}
+	}
+
 	rrule := ""
 	if event.Rrule != nil {
 		rrule = event.Rrule.String()

@@ -158,27 +158,25 @@ func (q Queries) GetEventByID(ctx context.Context, ID int) (*Event, error) {
 		return nil, err
 	}
 
-	rows, err := q.querier.Query(ctx, query, args...)
+	row := q.querier.QueryRow(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 
 	var event Event
-	for rows.Next() {
-		if err := rows.Scan(
-			&event.ID,
-			&event.Title,
-			&event.Description,
-			&event.Duration,
-			&event.CreatedAt,
-			&event.UpdatedAt,
-			&event.StartDate,
-			&event.Rrule,
-			&event.IsAllDay,
-			&event.IsRepeated,
-		); err != nil {
-			return nil, err
-		}
+	if err = row.Scan(
+		&event.ID,
+		&event.Title,
+		&event.Description,
+		&event.Duration,
+		&event.CreatedAt,
+		&event.UpdatedAt,
+		&event.StartDate,
+		&event.Rrule,
+		&event.IsAllDay,
+		&event.IsRepeated,
+	); err != nil {
+		return nil, err
 	}
 
 	return &event, nil

@@ -1,8 +1,7 @@
-build:
-	CGO_ENABLED=0 && go build cmd/joom-calendar bin/joom-calendar
+all: start-env migrate
 
-run:
-	CGO_ENABLED=0 && go run cmd/joom-calendar
+start-env:
+	docker-compose up -d
 
 migrate:
-	goose -dir migrations postgres "user=postgres dbname=postgres password=postgrespw sslmode=disable" up
+	goose -dir migrations postgres "user=postgres dbname=joom_calendar password=postgrespw sslmode=disable" up

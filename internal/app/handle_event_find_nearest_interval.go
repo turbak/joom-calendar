@@ -25,7 +25,7 @@ func (a *App) handleFindNearestTimeInterval() httputil.HandlerFunc {
 		}
 
 		userIDs, err := parseUserIDs(req.URL.Query()["user_ids"])
-		if err != nil {
+		if err != nil || len(userIDs) == 0 {
 			return nil, CodableError{Err: fmt.Errorf("failed to parse user ids: %v", err), StatusCode: http.StatusBadRequest}
 		}
 
