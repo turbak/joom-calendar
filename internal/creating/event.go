@@ -12,7 +12,6 @@ type Event struct {
 	OrganizerUserID int
 	InvitedUserIDs  []int
 	Duration        int
-	IsAllDay        bool
 	Repeat          *EventRepeat
 }
 
@@ -34,14 +33,14 @@ const (
 	EventRepeatFrequencyYearly  EventRepeatFrequency = "yearly"
 )
 
-func (e *EventRepeat) ToRrule() string {
+func (e *EventRepeat) ToRrule(startDate time.Time) string {
 	if e == nil {
 		return ""
 	}
 
 	opts := rrule.ROption{
 		Freq:    e.Frequency.ToRrule(),
-		Dtstart: e.StartDate,
+		Dtstart: startDate,
 	}
 
 	for _, day := range e.DaysOfWeek {
@@ -96,5 +95,5 @@ func (e EventRepeatFrequency) ToRrule() rrule.Frequency {
 	case EventRepeatFrequencyYearly:
 		return rrule.YEARLY
 	}
-	return rrule.DAILY
+	return rrule.YEARLY
 }

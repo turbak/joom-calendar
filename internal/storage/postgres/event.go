@@ -11,7 +11,6 @@ type Event struct {
 	Duration    int
 	StartDate   time.Time
 	Rrule       string
-	IsAllDay    bool
 	IsRepeated  bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

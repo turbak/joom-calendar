@@ -2,7 +2,6 @@ package listing
 
 import (
 	"context"
-	"github.com/teambition/rrule-go"
 	"time"
 )
 
@@ -39,13 +38,7 @@ func (s *Service) ListUsersEvents(ctx context.Context, userID int, from, to time
 
 	j := 0
 	for i := range events {
-		if events[i].IsRepeated {
-			isEventInPeriod := len(events[i].Rrule.Between(from, to, true)) > 0
-			if isEventInPeriod {
-				events[j] = events[i]
-				j++
-			}
-		} else {
+		if len(events[i].Rrule.Between(from, to, true)) > 0 {
 			events[j] = events[i]
 			j++
 		}
@@ -67,19 +60,17 @@ func (s *Service) GetNearestEmptyTimeInterval(ctx context.Context, userIDs []int
 		return time.Time{}, time.Time{}, err
 	}
 
-	rrules := pluckRRules(events)
-
 	ctx, cancel := context.WithTimeout(ctx, minIntervalTimeout)
 	defer cancel()
 
-	min, err := findMinInterval(ctx, rrules, minDuration)
+	min, err := findMinInterval(ctx, events, minDuration)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
 
 	max := time.Time{}
-	for _, rule := range rrules {
-		if after := rule.After(min, true); !after.IsZero() && (max.IsZero() || after.Before(max)) {
+	for _, event := range events {
+		if after := event.Rrule.After(min, true); !after.IsZero() && (max.IsZero() || after.Before(max)) {
 			max = after
 		}
 	}
@@ -91,17 +82,17 @@ func (s *Service) GetNearestEmptyTimeInterval(ctx context.Context, userIDs []int
 	return min, max, nil
 }
 
-func findMinInterval(ctx context.Context, rrules []*rrule.RRule, minDuration time.Duration) (time.Time, error) {
+func findMinInterval(ctx context.Context, events []Event, minDuration time.Duration) (time.Time, error) {
 	min := time.Now()
 	minPlusDuration := min.Add(minDuration)
-	for i := 0; i < len(rrules); i++ {
+	for i := 0; i < len(events); i++ {
 		select {
 		case <-ctx.Done():
 			return time.Time{}, ctx.Err()
 		default:
 		}
 
-		if between := rrules[i].Between(min, minPlusDuration, true); len(between) > 0 {
+		if between := events[i].Rrule.Between(min, minPlusDuration, true); len(between) > 0 {
 			min = between[len(between)-1]
 			minPlusDuration = min.Add(minDuration)
 			i = -1
@@ -109,14 +100,4 @@ func findMinInterval(ctx context.Context, rrules []*rrule.RRule, minDuration tim
 	}
 
 	return min, nil
-}
-
-func pluckRRules(events []Event) []*rrule.RRule {
-	rrules := make([]*rrule.RRule, 0, len(events))
-	for _, event := range events {
-		if event.IsRepeated {
-			rrules = append(rrules, event.Rrule)
-		}
-	}
-	return rrules
 }

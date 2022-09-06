@@ -80,9 +80,8 @@ func (s *Storage) CreateEvent(ctx context.Context, event creating.Event) (int, e
 			Description: event.Description,
 			Duration:    event.Duration,
 			StartDate:   event.StartDate,
-			IsAllDay:    event.IsAllDay,
 			IsRepeated:  event.Repeat != nil,
-			Rrule:       event.Repeat.ToRrule(),
+			Rrule:       event.Repeat.ToRrule(event.StartDate),
 		})
 		if err != nil {
 			return err

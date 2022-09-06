@@ -50,15 +50,14 @@ type createEventParams struct {
 	Description string
 	Duration    int
 	StartDate   time.Time
-	IsAllDay    bool
 	IsRepeated  bool
 	Rrule       string
 }
 
 func (q Queries) CreateEvent(ctx context.Context, params createEventParams) (int, error) {
 	const query = `INSERT INTO events 
-    			(title, description, duration, start_date, is_all_day, is_repeated, rrule) 
-				VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+    			(title, description, duration, start_date, is_repeated, rrule) 
+				VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
 	row := q.querier.QueryRow(
 		ctx,
 		query,
@@ -66,7 +65,6 @@ func (q Queries) CreateEvent(ctx context.Context, params createEventParams) (int
 		params.Description,
 		params.Duration,
 		params.StartDate,
-		params.IsAllDay,
 		params.IsRepeated,
 		params.Rrule,
 	)
@@ -121,7 +119,7 @@ func (q Queries) BatchGetUsersByIDs(ctx context.Context, IDs []int) ([]User, err
 	var users []User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&user.ID,
 			&user.Name,
 			&user.Email,
@@ -147,7 +145,6 @@ func (q Queries) GetEventByID(ctx context.Context, ID int) (*Event, error) {
 			"e.updated_at",
 			"e.start_date",
 			"e.rrule",
-			"e.is_all_day",
 			"e.is_repeated",
 		).
 		From("events e").
@@ -173,7 +170,6 @@ func (q Queries) GetEventByID(ctx context.Context, ID int) (*Event, error) {
 		&event.UpdatedAt,
 		&event.StartDate,
 		&event.Rrule,
-		&event.IsAllDay,
 		&event.IsRepeated,
 	); err != nil {
 		return nil, err
@@ -279,7 +275,7 @@ func (q Queries) BatchGetFullEventAttendees(ctx context.Context, eventIDs ...int
 	var attendees []FullEventAttendee
 	for rows.Next() {
 		var attendee FullEventAttendee
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&attendee.EventID,
 			&attendee.Status,
 			&attendee.CreatedAt,
@@ -309,7 +305,6 @@ func (q Queries) ListUsersEvents(ctx context.Context, from, to time.Time, usersI
 			"e.updated_at",
 			"e.start_date",
 			"e.rrule",
-			"e.is_all_day",
 			"e.is_repeated",
 		).
 		From("events e").
@@ -331,7 +326,7 @@ func (q Queries) ListUsersEvents(ctx context.Context, from, to time.Time, usersI
 
 	for rows.Next() {
 		var event Event
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&event.ID,
 			&event.Title,
 			&event.Description,
@@ -340,7 +335,6 @@ func (q Queries) ListUsersEvents(ctx context.Context, from, to time.Time, usersI
 			&event.UpdatedAt,
 			&event.StartDate,
 			&event.Rrule,
-			&event.IsAllDay,
 			&event.IsRepeated,
 		); err != nil {
 			return nil, err
@@ -362,7 +356,6 @@ func (q Queries) BatchGetEventsByUserIDs(ctx context.Context, userIDs []int) ([]
 			"e.updated_at",
 			"e.start_date",
 			"e.rrule",
-			"e.is_all_day",
 			"e.is_repeated",
 		).
 		From("events e").
@@ -382,7 +375,7 @@ func (q Queries) BatchGetEventsByUserIDs(ctx context.Context, userIDs []int) ([]
 
 	for rows.Next() {
 		var event Event
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&event.ID,
 			&event.Title,
 			&event.Description,
@@ -391,7 +384,6 @@ func (q Queries) BatchGetEventsByUserIDs(ctx context.Context, userIDs []int) ([]
 			&event.UpdatedAt,
 			&event.StartDate,
 			&event.Rrule,
-			&event.IsAllDay,
 			&event.IsRepeated,
 		); err != nil {
 			return nil, err

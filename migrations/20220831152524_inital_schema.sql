@@ -15,7 +15,6 @@ CREATE TABLE events (
     description text NOT NULL,
     duration integer NOT NULL,
     start_date timestamp NOT NULL,
-    is_all_day boolean NOT NULL,
     is_repeated boolean NOT NULL,
     rrule text,
     created_at timestamp NOT NULL DEFAULT now(),
