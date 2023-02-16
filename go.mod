@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/Masterminds/squirrel v1.5.3
 	github.com/go-chi/chi v1.5.4
+	github.com/golang-jwt/jwt/v4 v4.4.3
 	github.com/jackc/pgconn v1.13.0
 	github.com/jackc/pgx/v4 v4.17.1
 	github.com/teambition/rrule-go v1.8.0
@@ -13,7 +14,6 @@ require (
 )
 
 require (
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

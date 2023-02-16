@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/turbak/joom-calendar/internal/creating"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/turbak/joom-calendar/internal/creating"
 )
 
 type Storage interface {
@@ -71,8 +72,8 @@ func (s *Service) generateToken(user User) (string, error) {
 		UserID: user.ID,
 		Name:   user.Name,
 		Email:  user.Email,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

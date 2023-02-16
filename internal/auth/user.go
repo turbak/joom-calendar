@@ -2,7 +2,8 @@ package auth
 
 import (
 	"errors"
-	"github.com/dgrijalva/jwt-go"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
 var ErrUserNotFound = errors.New("user not found")
@@ -17,5 +18,5 @@ type Claims struct {
 	UserID int
 	Name   string
 	Email  string
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
